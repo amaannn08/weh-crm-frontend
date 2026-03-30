@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { fetchDeals, fetchDeal } from '../api/deals'
 import { fetchMeetings } from '../api/meetings'
+import { useAuth } from './AuthContext'
 
 const DealDataContext = createContext(null)
 
@@ -16,16 +17,18 @@ export function DealDataProvider({ children }) {
   const [meetingsLoaded, setMeetingsLoaded] = useState(false)
   const [meetingsLoading, setMeetingsLoading] = useState(false)
 
-  // ── Eager boot fetch — populate sidebar/header immediately ─────────────────
+  const { isAuthenticated } = useAuth()
+
+  // ── Eager fetch: re-run whenever the user logs in (token changes) ───────────
   useEffect(() => {
+    if (!isAuthenticated) return
     fetchDeals()
       .then(data => { setDeals(data); setDealsLoaded(true) })
       .catch(() => { })
     fetchMeetings()
       .then(data => { setMeetings(Array.isArray(data) ? data : []); setMeetingsLoaded(true) })
       .catch(() => { })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []) // intentionally run once on mount only
+  }, [isAuthenticated]) // re-runs on login AND on initial mount when token is present
 
   // ── Deals loaders ───────────────────────────────────────────────────────────
   const loadDeals = useCallback(
