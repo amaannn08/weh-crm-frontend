@@ -1,14 +1,13 @@
 import { apiHeaders } from './client'
 import { API_BASE, dealScoreUrl, dealUrl, routes } from './routes'
+import { cache } from './cache'
 
 export async function fetchDeals() {
-  const res = await fetch(routes.deals, {
-    headers: apiHeaders()
+  return cache.get('deals', async () => {
+    const res = await fetch(routes.deals, { headers: apiHeaders() })
+    if (!res.ok) throw new Error('Failed to fetch deals')
+    return res.json()
   })
-  if (!res.ok) {
-    throw new Error('Failed to fetch deals')
-  }
-  return res.json()
 }
 
 export async function fetchDeal(id) {
@@ -27,9 +26,8 @@ export async function createDeal(payload) {
     headers: apiHeaders(),
     body: JSON.stringify(payload)
   })
-  if (!res.ok) {
-    throw new Error('Failed to create deal')
-  }
+  if (!res.ok) throw new Error('Failed to create deal')
+  cache.invalidate('deals')
   return res.json()
 }
 
@@ -50,9 +48,8 @@ export async function deleteDeal(id) {
     method: 'DELETE',
     headers: apiHeaders()
   })
-  if (!res.ok && res.status !== 404) {
-    throw new Error('Failed to delete deal')
-  }
+  if (!res.ok && res.status !== 404) throw new Error('Failed to delete deal')
+  cache.invalidate('deals')
 }
 
 export async function fetchDealScore(id) {

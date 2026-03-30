@@ -5,7 +5,11 @@ export const routes = {
   assistantChat: API_BASE ? `${API_BASE}/assistant/chat` : '/api/assistant/chat',
   conversations: API_BASE ? `${API_BASE}/conversations` : '/api/conversations',
   deals: API_BASE ? `${API_BASE}/deals` : '/api/deals',
-  meetings: API_BASE ? `${API_BASE}/meetings` : '/api/meetings'
+  meetings: API_BASE ? `${API_BASE}/meetings` : '/api/meetings',
+  news: API_BASE ? `${API_BASE}/news` : '/api/news',
+  companies: API_BASE ? `${API_BASE}/companies` : '/api/companies',
+  newsletters: API_BASE ? `${API_BASE}/newsletters` : '/api/newsletters',
+  admin: API_BASE ? `${API_BASE}/admin` : '/api/admin'
 }
 
 export function conversationUrl(id) {

@@ -1,14 +1,13 @@
 import { apiHeaders } from './client'
 import { routes, dealMeetingUrl } from './routes'
+import { cache } from './cache'
 
 export async function fetchMeetings() {
-  const res = await fetch(routes.meetings, {
-    headers: apiHeaders()
+  return cache.get('meetings', async () => {
+    const res = await fetch(routes.meetings, { headers: apiHeaders() })
+    if (!res.ok) throw new Error('Failed to fetch meetings')
+    return res.json()
   })
-  if (!res.ok) {
-    throw new Error('Failed to fetch meetings')
-  }
-  return res.json()
 }
 
 export async function fetchDealMeeting(dealId) {
@@ -30,9 +29,8 @@ export async function createDealMeeting(dealId, payload) {
     headers: apiHeaders(),
     body: JSON.stringify(payload)
   })
-  if (!res.ok) {
-    throw new Error('Failed to create deal meeting')
-  }
+  if (!res.ok) throw new Error('Failed to create deal meeting')
+  cache.invalidate('meetings')
   return res.json()
 }
 
@@ -53,12 +51,9 @@ export async function deleteDealMeeting(dealId) {
     method: 'DELETE',
     headers: apiHeaders()
   })
-  if (res.status === 404) {
-    return
-  }
-  if (!res.ok) {
-    throw new Error('Failed to delete deal meeting')
-  }
+  if (res.status === 404) return
+  if (!res.ok) throw new Error('Failed to delete deal meeting')
+  cache.invalidate('meetings')
 }
 
 
