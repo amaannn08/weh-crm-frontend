@@ -25,13 +25,16 @@ function StatCard({ label, value, sub, color, emoji, onClick }) {
     )
 }
 
-function ActivityRow({ company, status, score, sector }) {
+function ActivityRow({ company, status, score, sector, meetingDate }) {
     const navigate = useNavigate()
     const statusColor =
-        status === 'Portfolio' ? 'bg-[#E8F5EE] text-[#3D7A58]'
-            : status === 'Active Diligence' ? 'bg-[#FFEFE2] text-[#FF7102]'
-                : status === 'Pass' ? 'bg-[#FEF3F2] text-[#B42318]'
-                    : 'bg-[#E8EEF7] text-[#3A5F8C]'
+        status === 'Active Diligence' ? 'bg-[#FFEFE2] text-[#FF7102]'
+            : status === 'Watch' ? 'bg-[#FFF8EC] text-[#92560A]'
+                : 'bg-[#E8EEF7] text-[#3A5F8C]'
+
+    const formattedDate = meetingDate
+        ? new Date(meetingDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+        : null
 
     return (
         <button
@@ -49,6 +52,11 @@ function ActivityRow({ company, status, score, sector }) {
                 </div>
             </div>
             <div className="flex items-center gap-3 shrink-0 ml-3">
+                {formattedDate && (
+                    <span className="text-[11px] font-mono text-[#9A958E] whitespace-nowrap">
+                        📅 {formattedDate}
+                    </span>
+                )}
                 <span className={`inline-flex items-center rounded-[4px] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] font-mono ${statusColor}`}>
                     {status || 'New'}
                 </span>
@@ -79,16 +87,36 @@ function Dashboard() {
         return { total, portfolio, active, pass, watch, avgScore, totalMeetings: meetings.length }
     }, [deals, meetings])
 
-    // Top 8 deals sorted by score desc for the recent activity list
-    const topDeals = useMemo(() =>
-        [...deals]
+    // Under-evaluation statuses (exclude Portfolio and Pass)
+    const UNDER_EVAL = new Set(['New', 'Active Diligence', 'Watch'])
+
+    // Build a map from deal_id → most recent meeting date so we can show it per row
+    const meetingDateByDeal = useMemo(() => {
+        const map = {}
+        for (const m of meetings) {
+            const date = m.meeting_date || m.date
+            if (!date || !m.deal_id) continue
+            const existing = map[m.deal_id]
+            if (!existing || new Date(date) > new Date(existing)) {
+                map[m.deal_id] = date
+            }
+        }
+        return map
+    }, [meetings])
+
+    // Under-evaluation deals sorted by most recent meeting date (newest first)
+    const evalDeals = useMemo(() =>
+        deals
+            .filter(d => UNDER_EVAL.has(d.status))
             .sort((a, b) => {
-                const sa = a.founder_final_score != null ? Number(a.founder_final_score) : -Infinity
-                const sb = b.founder_final_score != null ? Number(b.founder_final_score) : -Infinity
-                return sb - sa
+                const da = meetingDateByDeal[a.id] || a.meeting_date || a.date
+                const db = meetingDateByDeal[b.id] || b.meeting_date || b.date
+                const ta = da ? new Date(da).getTime() : -Infinity
+                const tb = db ? new Date(db).getTime() : -Infinity
+                return tb - ta // newest first
             })
             .slice(0, 8),
-        [deals]
+        [deals, meetingDateByDeal]
     )
 
     return (
@@ -151,11 +179,11 @@ function Dashboard() {
                 />
             </div>
 
-            {/* Top deals table — fills remaining height */}
+            {/* Under-evaluation deals sorted by most recent meeting */}
             <div className="flex min-h-0 flex-1 flex-col rounded-2xl border border-[#E8E5DE] bg-white overflow-hidden">
                 <div className="border-b border-[#E8E5DE] px-5 py-3 flex items-center justify-between">
                     <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9A958E] font-mono">
-                        Top deals by score
+                        Recent meetings — under evaluation
                     </span>
                     <button
                         type="button"
@@ -166,16 +194,17 @@ function Dashboard() {
                     </button>
                 </div>
                 <div className="min-h-0 flex-1 overflow-y-auto divide-y divide-[#F5F4F0] px-2 py-1">
-                    {topDeals.length === 0 ? (
-                        <p className="px-3 py-6 text-center text-sm text-[#C8C3BB]">No deals yet — upload a transcript to get started.</p>
+                    {evalDeals.length === 0 ? (
+                        <p className="px-3 py-6 text-center text-sm text-[#C8C3BB]">No deals under evaluation yet.</p>
                     ) : (
-                        topDeals.map(deal => (
+                        evalDeals.map(deal => (
                             <ActivityRow
                                 key={deal.id}
                                 company={deal.company}
                                 status={deal.status}
                                 score={deal.founder_final_score}
                                 sector={deal.sector}
+                                meetingDate={meetingDateByDeal[deal.id] || deal.meeting_date || deal.date}
                             />
                         ))
                     )}
