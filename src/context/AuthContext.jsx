@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { getToken, setToken as persistToken, clearToken } from '../auth'
+import { cache } from '../api/cache'
 
 const AuthContext = createContext(null)
 
@@ -17,6 +18,7 @@ export function AuthProvider({ children }) {
 
   const logout = () => {
     clearToken()
+    cache.clear()
     setTokenState(null)
   }
 

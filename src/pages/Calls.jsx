@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import { routes, conversationUrl } from '../api/routes'
-import { apiHeaders } from '../api/client'
+import { apiHeaders, authFetch } from '../api/client'
 
 const PROMPTS = [
   {
@@ -98,7 +98,7 @@ function CallsPage() {
   useEffect(() => {
     const fetchConversations = async () => {
       try {
-        const res = await fetch(routes.conversations, { headers: apiHeaders() })
+        const res = await authFetch(routes.conversations, { headers: apiHeaders() })
         if (!res.ok) return
         const data = await res.json()
         if (!Array.isArray(data)) return
@@ -157,7 +157,7 @@ function CallsPage() {
     // If there is no active session yet, create one in the backend
     if (!targetSessionId) {
       try {
-        const createRes = await fetch(routes.conversations, {
+        const createRes = await authFetch(routes.conversations, {
           method: 'POST',
           headers: apiHeaders(),
           body: JSON.stringify({ title: '' })
@@ -209,7 +209,7 @@ function CallsPage() {
       const controller = new AbortController()
       abortControllerRef.current = controller
 
-      const res = await fetch(routes.assistantChat, {
+      const res = await authFetch(routes.assistantChat, {
         method: 'POST',
         headers: apiHeaders(),
         body: JSON.stringify({
@@ -351,7 +351,7 @@ function CallsPage() {
   const handleNewChat = () => {
     (async () => {
       try {
-        const res = await fetch(routes.conversations, {
+        const res = await authFetch(routes.conversations, {
           method: 'POST',
           headers: apiHeaders(),
           body: JSON.stringify({ title: '' })
@@ -378,7 +378,7 @@ function CallsPage() {
   const handleDeleteSession = (sessionId) => {
     (async () => {
       try {
-        const res = await fetch(conversationUrl(sessionId), {
+        const res = await authFetch(conversationUrl(sessionId), {
           method: 'DELETE',
           headers: apiHeaders()
         })
@@ -408,7 +408,7 @@ function CallsPage() {
       return
     }
     try {
-      const res = await fetch(conversationUrl(sessionId), {
+      const res = await authFetch(conversationUrl(sessionId), {
         headers: apiHeaders()
       })
       if (!res.ok) return
@@ -486,8 +486,8 @@ function CallsPage() {
                   >
                     <div
                       className={`max-w-[80%] rounded-2xl px-5 py-3 text-[13px] leading-relaxed shadow-sm ${message.role === 'user'
-                          ? 'rounded-br-sm bg-[#FFE7D1] text-[#B85A12] shadow-[0_8px_18px_rgba(191,98,10,0.22)]'
-                          : 'rounded-bl-sm border border-[#E8E5DE] bg-white text-[#1A1815] shadow-[0_6px_16px_rgba(26,24,21,0.08)]'
+                        ? 'rounded-br-sm bg-[#FFE7D1] text-[#B85A12] shadow-[0_8px_18px_rgba(191,98,10,0.22)]'
+                        : 'rounded-bl-sm border border-[#E8E5DE] bg-white text-[#1A1815] shadow-[0_6px_16px_rgba(26,24,21,0.08)]'
                         }`}
                     >
                       {message.role === 'assistant' ? (
@@ -620,8 +620,8 @@ function CallsPage() {
                         }
                       }}
                       className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left ${session.id === activeSessionId
-                          ? 'bg-[#FAFAF8] text-[#1A1815]'
-                          : 'bg-white text-[#5A5650] hover:bg-[#FAFAF8]'
+                        ? 'bg-[#FAFAF8] text-[#1A1815]'
+                        : 'bg-white text-[#5A5650] hover:bg-[#FAFAF8]'
                         }`}
                     >
                       <div className="flex items-center gap-2">

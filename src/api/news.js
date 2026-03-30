@@ -1,4 +1,4 @@
-import { apiHeaders } from './client'
+import { apiHeaders, authFetch } from './client'
 import { routes } from './routes'
 import { cache } from './cache'
 
@@ -16,14 +16,14 @@ function withQuery(base, params = {}) {
 export async function fetchNews(params = {}) {
   const key = 'news:' + JSON.stringify(params)
   return cache.get(key, async () => {
-    const res = await fetch(withQuery(routes.news, params), { headers: apiHeaders() })
+    const res = await authFetch(withQuery(routes.news, params), { headers: apiHeaders() })
     if (!res.ok) throw new Error('Failed to fetch news')
     return res.json()
   })
 }
 
 export async function fetchNewsSummary() {
-  const res = await fetch(`${routes.news}/summary`, { headers: apiHeaders() })
+  const res = await authFetch(`${routes.news}/summary`, { headers: apiHeaders() })
   if (!res.ok) throw new Error('Failed to fetch news summary')
   return res.json()
 }
@@ -33,7 +33,7 @@ export async function fetchNewsSummary() {
 export async function fetchCompanies(params = {}) {
   const key = 'companies:' + JSON.stringify(params)
   return cache.get(key, async () => {
-    const res = await fetch(withQuery(routes.companies, params), { headers: apiHeaders() })
+    const res = await authFetch(withQuery(routes.companies, params), { headers: apiHeaders() })
     if (!res.ok) throw new Error('Failed to fetch companies')
     return res.json()
   })
@@ -44,20 +44,20 @@ export async function fetchCompanies(params = {}) {
 export async function fetchNewsletters(params = {}) {
   const key = 'newsletters:' + JSON.stringify(params)
   return cache.get(key, async () => {
-    const res = await fetch(withQuery(routes.newsletters, params), { headers: apiHeaders() })
+    const res = await authFetch(withQuery(routes.newsletters, params), { headers: apiHeaders() })
     if (!res.ok) throw new Error('Failed to fetch newsletters')
     return res.json()
   })
 }
 
 export async function fetchIssue(id) {
-  const res = await fetch(`${routes.newsletters}/${id}`, { headers: apiHeaders() })
+  const res = await authFetch(`${routes.newsletters}/${id}`, { headers: apiHeaders() })
   if (!res.ok) throw new Error('Failed to fetch issue')
   return res.json()
 }
 
 export async function createNewsletter(title, periodLabel) {
-  const res = await fetch(routes.newsletters, {
+  const res = await authFetch(routes.newsletters, {
     method: 'POST',
     headers: apiHeaders(),
     body: JSON.stringify({ title, period_label: periodLabel || null })
@@ -68,7 +68,7 @@ export async function createNewsletter(title, periodLabel) {
 }
 
 export async function updateNewsletter(id, data) {
-  const res = await fetch(`${routes.newsletters}/${id}`, {
+  const res = await authFetch(`${routes.newsletters}/${id}`, {
     method: 'PATCH',
     headers: apiHeaders(),
     body: JSON.stringify(data)
@@ -78,7 +78,7 @@ export async function updateNewsletter(id, data) {
 }
 
 export async function deleteNewsletter(id) {
-  const res = await fetch(`${routes.newsletters}/${id}`, {
+  const res = await authFetch(`${routes.newsletters}/${id}`, {
     method: 'DELETE',
     headers: apiHeaders()
   })
@@ -88,7 +88,7 @@ export async function deleteNewsletter(id) {
 }
 
 export async function renderNewsletter(id) {
-  const res = await fetch(`${routes.newsletters}/${id}/render`, { headers: apiHeaders() })
+  const res = await authFetch(`${routes.newsletters}/${id}/render`, { headers: apiHeaders() })
   if (!res.ok) throw new Error('Failed to render newsletter')
   return res.json()
 }
@@ -96,7 +96,7 @@ export async function renderNewsletter(id) {
 // ── Picks ─────────────────────────────────────────────────────────────────────
 
 export async function addPick(issueId, newsItemId) {
-  const res = await fetch(`${routes.newsletters}/${issueId}/picks`, {
+  const res = await authFetch(`${routes.newsletters}/${issueId}/picks`, {
     method: 'POST',
     headers: apiHeaders(),
     body: JSON.stringify({ news_item_id: newsItemId })
@@ -106,7 +106,7 @@ export async function addPick(issueId, newsItemId) {
 }
 
 export async function removePick(issueId, pickId) {
-  const res = await fetch(`${routes.newsletters}/${issueId}/picks/${pickId}`, {
+  const res = await authFetch(`${routes.newsletters}/${issueId}/picks/${pickId}`, {
     method: 'DELETE',
     headers: apiHeaders()
   })
@@ -115,7 +115,7 @@ export async function removePick(issueId, pickId) {
 }
 
 export async function reorderPicks(issueId, order) {
-  const res = await fetch(`${routes.newsletters}/${issueId}/picks/reorder`, {
+  const res = await authFetch(`${routes.newsletters}/${issueId}/picks/reorder`, {
     method: 'POST',
     headers: apiHeaders(),
     body: JSON.stringify({ order })
@@ -127,7 +127,7 @@ export async function reorderPicks(issueId, order) {
 // ── Segments ──────────────────────────────────────────────────────────────────
 
 export async function addSegment(issueId, data) {
-  const res = await fetch(`${routes.newsletters}/${issueId}/segments`, {
+  const res = await authFetch(`${routes.newsletters}/${issueId}/segments`, {
     method: 'POST',
     headers: apiHeaders(),
     body: JSON.stringify(data)
@@ -137,7 +137,7 @@ export async function addSegment(issueId, data) {
 }
 
 export async function updateSegment(issueId, segId, data) {
-  const res = await fetch(`${routes.newsletters}/${issueId}/segments/${segId}`, {
+  const res = await authFetch(`${routes.newsletters}/${issueId}/segments/${segId}`, {
     method: 'PATCH',
     headers: apiHeaders(),
     body: JSON.stringify(data)
@@ -147,7 +147,7 @@ export async function updateSegment(issueId, segId, data) {
 }
 
 export async function deleteSegment(issueId, segId) {
-  const res = await fetch(`${routes.newsletters}/${issueId}/segments/${segId}`, {
+  const res = await authFetch(`${routes.newsletters}/${issueId}/segments/${segId}`, {
     method: 'DELETE',
     headers: apiHeaders()
   })
