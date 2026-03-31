@@ -4,6 +4,66 @@ import { useDealData } from '../context/DealDataContext'
 
 const STATUS_OPTIONS = ['New', 'Active', 'Evaluation', 'Pass', 'Watch', 'Portfolio']
 
+const STATUS_STYLES = {
+  Pass: 'border-[#FEE4E2] bg-[#FEF3F2] text-[#B42318]',
+  Portfolio: 'border-[#C6E4D4] bg-[#E8F5EE] text-[#3D7A58]',
+  'Active Diligence': 'border-[#FFD0AB] bg-[#FFEFE2] text-[#FF7102]',
+  Watch: 'border-[#C5D4E8] bg-[#E8EEF7] text-[#3A5F8C]',
+  Active: 'border-[#FFD0AB] bg-[#FFEFE2] text-[#FF7102]',
+  Evaluation: 'border-[#E8D5B7] bg-[#FBF2EA] text-[#9A6B3F]',
+  New: 'border-[#C5D4E8] bg-[#E8EEF7] text-[#3A5F8C]',
+}
+
+const STATUS_ACTIVE = {
+  Pass: 'bg-[#B42318] text-white border-[#B42318]',
+  Portfolio: 'bg-[#3D7A58] text-white border-[#3D7A58]',
+  'Active Diligence': 'bg-[#FF7102] text-white border-[#FF7102]',
+  Watch: 'bg-[#3A5F8C] text-white border-[#3A5F8C]',
+  Active: 'bg-[#FF7102] text-white border-[#FF7102]',
+  Evaluation: 'bg-[#9A6B3F] text-white border-[#9A6B3F]',
+  New: 'bg-[#3A5F8C] text-white border-[#3A5F8C]',
+}
+
+function getStatusStyle(status, isActive) {
+  if (isActive) return STATUS_ACTIVE[status] || 'bg-[#1A1815] text-white border-[#1A1815]'
+  return STATUS_STYLES[status] || 'border-[#E8E5DE] bg-white text-[#5A5650]'
+}
+
+function formatMeetingDate(value) {
+  if (!value) return null
+  const d = new Date(value)
+  if (isNaN(d.getTime())) return null
+  return d.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
+function NoteSection({ emoji, label, accent, field, value, onChange, rows = 4, placeholder }) {
+  const accentBorder = {
+    orange: 'border-l-[#FF7102]',
+    red: 'border-l-[#B42318]',
+    blue: 'border-l-[#3A5F8C]',
+    green: 'border-l-[#3D7A58]',
+    amber: 'border-l-[#9A6B3F]',
+  }[accent] || 'border-l-[#E8E5DE]'
+
+  return (
+    <div className={`rounded-xl border border-[#E8E5DE] border-l-[3px] ${accentBorder} bg-white shadow-[0_1px_2px_rgba(26,24,21,0.04)] overflow-hidden`}>
+      <div className="flex items-center gap-2 border-b border-[#F0EDE8] px-4 py-2.5">
+        <span className="text-[13px]">{emoji}</span>
+        <span className="text-[10px] font-mono font-semibold uppercase tracking-[0.18em] text-[#9A958E]">
+          {label}
+        </span>
+      </div>
+      <textarea
+        value={value}
+        onChange={onChange}
+        rows={rows}
+        placeholder={placeholder}
+        className="w-full resize-none bg-transparent px-4 py-3 text-[13px] leading-relaxed text-[#1A1815] placeholder:italic placeholder:text-[#C8C3BB] focus:outline-none"
+      />
+    </div>
+  )
+}
+
 function MeetingNotesEditor({
   dealId,
   meeting,
@@ -15,11 +75,7 @@ function MeetingNotesEditor({
   onSaved,
   onDeleted
 }) {
-  const {
-    meetings,
-    updateMeetingInCache,
-    removeMeetingFromCache
-  } = useDealData()
+  const { meetings, updateMeetingInCache, removeMeetingFromCache } = useDealData()
 
   const meetingFromContext = useMemo(() => {
     if (!dealId) return null
@@ -39,6 +95,7 @@ function MeetingNotesEditor({
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [error, setError] = useState(null)
+  const [saved, setSaved] = useState(false)
 
   useEffect(() => {
     setForm({
@@ -80,6 +137,8 @@ function MeetingNotesEditor({
       const updated = await updateDealMeeting(dealId, patch)
       updateMeetingInCache(updated)
       if (onSaved) await onSaved(updated)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
     } catch {
       setError('Failed to save meeting notes')
     } finally {
@@ -103,6 +162,8 @@ function MeetingNotesEditor({
         }
         await onSave(patch)
         if (onSaved) await onSaved()
+        setSaved(true)
+        setTimeout(() => setSaved(false), 2000)
       } catch {
         setError('Failed to save meeting notes')
       } finally {
@@ -115,11 +176,8 @@ function MeetingNotesEditor({
 
   const handleDefaultDelete = async () => {
     if (!dealId) return
-    const confirmed = window.confirm(
-      'Delete this meeting? This will not delete the underlying deal.'
-    )
+    const confirmed = window.confirm('Delete this meeting? This will not delete the underlying deal.')
     if (!confirmed) return
-
     setDeleting(true)
     setError(null)
     try {
@@ -152,30 +210,43 @@ function MeetingNotesEditor({
     await handleDefaultDelete()
   }
 
-  return (
-    <div className="space-y-4">
-      {error && (
-        <div className="rounded-lg border border-[#FEE4E2] bg-[#FEF3F2] px-3 py-2 text-xs text-[#B42318]">
-          {error}
-        </div>
-      )}
+  const date = formatMeetingDate(effectiveMeeting?.meeting_date || effectiveMeeting?.date)
 
-      <div className="flex items-center justify-between gap-2">
+  return (
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-sm font-semibold text-[#1A1815]">{title}</h2>
-          {effectiveMeeting?.poc && (
-            <p className="mt-1 text-[11px] text-[#9A958E]">
-              POC: {effectiveMeeting.poc}
-            </p>
-          )}
+          <p className="text-[10px] font-mono uppercase tracking-[0.22em] text-[#FF7102]">Meeting notes</p>
+          <h2 className="mt-0.5 text-[17px] font-semibold text-[#1A1815]">{title}</h2>
+          <div className="mt-2 flex flex-wrap items-center gap-3">
+            {effectiveMeeting?.poc && (
+              <span className="flex items-center gap-1.5 text-[11px] text-[#9A958E]">
+                <svg className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                </svg>
+                {effectiveMeeting.poc}
+              </span>
+            )}
+            {date && (
+              <span className="flex items-center gap-1.5 text-[11px] font-mono text-[#9A958E]">
+                <svg className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+                </svg>
+                {date}
+              </span>
+            )}
+          </div>
         </div>
-        <div className="flex items-center gap-2">
+
+        {/* Action buttons */}
+        <div className="flex shrink-0 items-center gap-2">
           {showDelete && (
             <button
               type="button"
               onClick={handleDelete}
               disabled={deleting}
-              className="rounded-full border border-[#FEE4E2] bg-[#FEF3F2] px-3 py-1 text-xs font-medium text-[#B42318] hover:bg-[#FEE4E2] disabled:opacity-60"
+              className="rounded-full border border-[#FEE4E2] bg-[#FEF3F2] px-3.5 py-1.5 text-[11px] font-semibold text-[#B42318] transition-colors hover:bg-[#FEE4E2] disabled:opacity-60"
             >
               {deleting ? 'Deleting…' : 'Delete'}
             </button>
@@ -185,97 +256,97 @@ function MeetingNotesEditor({
               type="button"
               onClick={handleSave}
               disabled={saving}
-              className="rounded-full bg-[#1A1815] px-3 py-1 text-xs font-medium text-white hover:bg-[#2d2a26] disabled:opacity-60"
+              className={`rounded-full px-4 py-1.5 text-[11px] font-semibold transition-all disabled:opacity-60 ${saved
+                  ? 'bg-[#3D7A58] text-white'
+                  : 'bg-[#1A1815] text-white hover:bg-[#2d2a26]'
+                }`}
             >
-              {saving ? 'Saving…' : 'Save'}
+              {saving ? 'Saving…' : saved ? '✓ Saved' : 'Save changes'}
             </button>
           )}
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="space-y-1">
-          <label className="text-xs font-semibold uppercase tracking-wide text-[#9A958E]">
-            Status
-          </label>
-          <select
-            value={form.status}
-            onChange={handleChange('status')}
-            className="w-full rounded-lg border border-[#E8E5DE] bg-white px-2 py-1.5 text-sm text-[#1A1815] focus:border-[#FF7102] focus:outline-none"
-          >
-            {STATUS_OPTIONS.map((opt) => (
-              <option key={opt} value={opt}>
-                {opt}
-              </option>
-            ))}
-          </select>
+      {error && (
+        <div className="rounded-lg border border-[#FEE4E2] bg-[#FEF3F2] px-3 py-2 text-[11px] text-[#B42318]">
+          {error}
         </div>
+      )}
 
-        <div className="space-y-1">
-          <label className="text-xs font-semibold uppercase tracking-wide text-[#9A958E]">
-            Why is this exciting?
-          </label>
-          <textarea
-            value={form.exciting_reason}
-            onChange={handleChange('exciting_reason')}
-            rows={4}
-            className="w-full rounded-lg border border-[#E8E5DE] bg-white px-2 py-1.5 text-sm text-[#1A1815] focus:border-[#FF7102] focus:outline-none"
-          />
+      {/* Status pills */}
+      <div className="space-y-2">
+        <p className="text-[10px] font-mono font-semibold uppercase tracking-[0.16em] text-[#9A958E]">Status</p>
+        <div className="flex flex-wrap gap-2">
+          {STATUS_OPTIONS.map((opt) => (
+            <button
+              key={opt}
+              type="button"
+              onClick={() => setForm((prev) => ({ ...prev, status: opt }))}
+              className={`rounded-full border px-3 py-1 text-[10px] font-mono font-semibold uppercase tracking-[0.08em] transition-all ${getStatusStyle(opt, form.status === opt)}`}
+            >
+              {opt}
+            </button>
+          ))}
         </div>
       </div>
 
-      <div className="space-y-1">
-        <label className="text-xs font-semibold uppercase tracking-wide text-[#9A958E]">
-          Risks
-        </label>
-        <textarea
-          value={form.risks}
-          onChange={handleChange('risks')}
-          rows={4}
-          className="w-full rounded-lg border border-[#E8E5DE] bg-white px-2 py-1.5 text-sm text-[#1A1815] focus:border-[#FF7102] focus:outline-none"
-        />
-      </div>
+      {/* Note sections */}
+      <NoteSection
+        emoji="✨"
+        label="Why is this exciting?"
+        accent="orange"
+        field="exciting_reason"
+        value={form.exciting_reason}
+        onChange={handleChange('exciting_reason')}
+        rows={4}
+        placeholder="What stood out in this meeting? What makes this opportunity compelling…"
+      />
+
+      <NoteSection
+        emoji="⚠️"
+        label="Risks"
+        accent="red"
+        field="risks"
+        value={form.risks}
+        onChange={handleChange('risks')}
+        rows={4}
+        placeholder="Key risks identified — market, team, traction, competition…"
+      />
 
       <div className="grid gap-4 md:grid-cols-3">
-        <div className="space-y-1">
-          <label className="text-xs font-semibold uppercase tracking-wide text-[#9A958E]">
-            Reasons for pass
-          </label>
-          <textarea
-            value={form.pass_reasons}
-            onChange={handleChange('pass_reasons')}
-            rows={3}
-            className="w-full rounded-lg border border-[#E8E5DE] bg-white px-2 py-1.5 text-sm text-[#1A1815] focus:border-[#FF7102] focus:outline-none"
-          />
-        </div>
-
-        <div className="space-y-1">
-          <label className="text-xs font-semibold uppercase tracking-wide text-[#9A958E]">
-            Reasons to watch
-          </label>
-          <textarea
-            value={form.watch_reasons}
-            onChange={handleChange('watch_reasons')}
-            rows={3}
-            className="w-full rounded-lg border border-[#E8E5DE] bg-white px-2 py-1.5 text-sm text-[#1A1815] focus:border-[#FF7102] focus:outline-none"
-          />
-        </div>
-
-        <div className="space-y-1">
-          <label className="text-xs font-semibold uppercase tracking-wide text-[#9A958E]">
-            Action required
-          </label>
-          <textarea
-            value={form.action_required}
-            onChange={handleChange('action_required')}
-            rows={3}
-            className="w-full rounded-lg border border-[#E8E5DE] bg-white px-2 py-1.5 text-sm text-[#1A1815] focus:border-[#FF7102] focus:outline-none"
-          />
-        </div>
+        <NoteSection
+          emoji="🚫"
+          label="Reasons to pass"
+          accent="red"
+          field="pass_reasons"
+          value={form.pass_reasons}
+          onChange={handleChange('pass_reasons')}
+          rows={3}
+          placeholder="Why we might pass…"
+        />
+        <NoteSection
+          emoji="👀"
+          label="Reasons to watch"
+          accent="blue"
+          field="watch_reasons"
+          value={form.watch_reasons}
+          onChange={handleChange('watch_reasons')}
+          rows={3}
+          placeholder="What to monitor…"
+        />
+        <NoteSection
+          emoji="⚡"
+          label="Action required"
+          accent="amber"
+          field="action_required"
+          value={form.action_required}
+          onChange={handleChange('action_required')}
+          rows={3}
+          placeholder="Next steps and follow-ups…"
+        />
       </div>
     </div>
   )
 }
 
 export default MeetingNotesEditor
-

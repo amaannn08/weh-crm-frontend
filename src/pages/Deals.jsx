@@ -161,107 +161,144 @@ function DeleteConfirmModal({ company, onCancel, onConfirm, deleting }) {
 }
 
 // ---------------------------------------------------------------------------
-// Table row
+// Status colour map (matches Meetings design)
 // ---------------------------------------------------------------------------
-function DealsTableRow({ deal, onView, onAddMeeting, onEdit, onDelete }) {
+const DEAL_STATUS_COLORS = {
+  Pass: { dot: '#B42318', pill: 'bg-[#FEF3F2] text-[#B42318]' },
+  Portfolio: { dot: '#3D7A58', pill: 'bg-[#E8F5EE] text-[#3D7A58]' },
+  'Active Diligence': { dot: '#FF7102', pill: 'bg-[#FFEFE2] text-[#FF7102]' },
+  Watch: { dot: '#3A5F8C', pill: 'bg-[#E8EEF7] text-[#3A5F8C]' },
+  New: { dot: '#3A5F8C', pill: 'bg-[#E8EEF7] text-[#3A5F8C]' },
+}
+function getDealStatusStyle(status) {
+  return DEAL_STATUS_COLORS[status] || { dot: '#9A958E', pill: 'bg-[#F5F4F0] text-[#5A5650]' }
+}
+
+// ---------------------------------------------------------------------------
+// Deal card row
+// ---------------------------------------------------------------------------
+function DealCard({ deal, onView, onAddMeeting, onEdit, onDelete }) {
   const lastMeeting = deal.meeting_date || deal.date || null
+  const date = lastMeeting ? formatDate(lastMeeting) : null
   const score = deal.founder_final_score ?? null
-  const description = (deal.business_model || deal.sector || '').trim()
+  const status = deal.status || 'New'
+  const { dot, pill } = getDealStatusStyle(status)
 
   return (
-    <tr className="border-b border-[#E8E5DE] hover:bg-[#FAFAF8] transition-colors">
-      <td className="px-4 py-3 align-top">
-        <div className="space-y-0.5">
-          <div className="text-sm font-medium text-[#1A1815]">{deal.company}</div>
-          <div className="text-xs text-[#9A958E]">
-            {deal.sector || deal.business_model || '—'}
+    <div className="group flex items-center gap-4 rounded-2xl border border-[#E8E5DE] bg-white px-5 py-4 shadow-[0_1px_2px_rgba(26,24,21,0.04),0_1px_3px_rgba(26,24,21,0.06)] transition-all hover:border-[#D4CFC4] hover:shadow-[0_4px_12px_rgba(26,24,21,0.10)]">
+      {/* Status dot */}
+      <span
+        className="mt-0.5 inline-block h-2.5 w-2.5 shrink-0 rounded-full"
+        style={{ backgroundColor: dot }}
+      />
+
+      {/* Company + sector — clicks to view */}
+      <button
+        type="button"
+        onClick={onView}
+        className="min-w-0 flex-1 text-left"
+      >
+        <div className="truncate text-[14px] font-semibold text-[#1A1815]">{deal.company}</div>
+        {(deal.sector || deal.business_model) && (
+          <div className="mt-0.5 text-[10px] font-mono uppercase tracking-[0.12em] text-[#C8C3BB]">
+            {deal.sector || deal.business_model}
           </div>
-        </div>
-      </td>
-      <td className="px-4 py-3 align-top text-sm text-[#5A5650]">
-        {deal.poc || '—'}
-      </td>
-      <td className="px-4 py-3 align-top text-sm text-[#5A5650] max-w-[20rem]">
-        <div className="line-clamp-2">{description || '—'}</div>
-      </td>
-      <td className="px-4 py-3 align-top text-sm text-[#5A5650]">
-        {lastMeeting ? formatDate(lastMeeting) : '—'}
-      </td>
-      <td className="px-4 py-3 align-top text-sm font-medium text-[#1A1815]">
-        {score != null ? Number(score).toFixed(1) : '—'}
-      </td>
-      <td className="px-4 py-3 align-top">
-        <div className="flex justify-end items-center gap-1">
-          {/* Add meeting */}
-          <button type="button" onClick={onAddMeeting} title="Add meeting"
-            className="rounded-lg border border-[#E8E5DE] bg-white p-1.5 text-[#5A5650] hover:bg-[#F5F4F0] hover:text-[#FF7102]">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h3a1 1 0 100-2H6zm0 4a1 1 0 000 2h6a1 1 0 100-2H6z" clipRule="evenodd" />
+        )}
+      </button>
+
+      {/* POC — fixed width */}
+      <div className="hidden w-32 shrink-0 items-center gap-1.5 sm:flex">
+        {deal.poc ? (
+          <>
+            <svg className="h-3 w-3 shrink-0 text-[#C8C3BB]" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
             </svg>
-          </button>
-          {/* View */}
-          <button type="button" onClick={onView} title="View deal"
-            className="rounded-lg border border-[#E8E5DE] bg-white p-1.5 text-[#5A5650] hover:bg-[#F5F4F0]">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-              <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+            <span className="truncate text-[12px] text-[#5A5650]">{deal.poc}</span>
+          </>
+        ) : (
+          <span className="text-[12px] text-[#C8C3BB]">—</span>
+        )}
+      </div>
+
+      {/* Date — fixed width */}
+      <div className="hidden w-32 shrink-0 items-center gap-1.5 md:flex">
+        {date ? (
+          <>
+            <svg className="h-3 w-3 shrink-0 text-[#C8C3BB]" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
             </svg>
-          </button>
-          {/* Edit */}
-          <button type="button" onClick={onEdit} title="Edit deal"
-            className="rounded-lg border border-[#E8E5DE] bg-white p-1.5 text-[#5A5650] hover:bg-[#F5F4F0]">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-            </svg>
-          </button>
-          {/* Delete */}
-          <button type="button" onClick={onDelete} title="Delete deal"
-            className="rounded-lg border border-red-100 bg-white p-1.5 text-red-400 hover:bg-red-50 hover:text-red-600">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-            </svg>
-          </button>
-        </div>
-      </td>
-    </tr>
+            <span className="text-[12px] font-mono text-[#9A958E]">{date}</span>
+          </>
+        ) : (
+          <span className="text-[12px] font-mono text-[#C8C3BB]">—</span>
+        )}
+      </div>
+
+      {/* Score — fixed width */}
+      <div className="hidden w-16 shrink-0 items-center justify-center md:flex">
+        {score != null ? (
+          <span className="inline-flex items-center justify-center rounded-full border border-[#E8E5DE] bg-[#FAFAF8] px-2.5 py-0.5 text-[11px] font-mono font-semibold text-[#1A1815]">
+            {Number(score).toFixed(1)}
+          </span>
+        ) : (
+          <span className="text-[12px] font-mono text-[#C8C3BB]">—</span>
+        )}
+      </div>
+
+      {/* Status pill — fixed width */}
+      <div className="w-32 shrink-0 flex justify-end">
+        <span className={`inline-flex items-center justify-center rounded-[4px] px-2 py-0.5 text-[9px] font-mono font-medium uppercase tracking-[0.10em] whitespace-nowrap ${pill}`}>
+          {status}
+        </span>
+      </div>
+
+      {/* Action buttons */}
+      <div className="flex shrink-0 items-center gap-1">
+        <button type="button" onClick={onAddMeeting} title="Add meeting"
+          className="rounded-lg border border-[#E8E5DE] bg-white p-1.5 text-[#9A958E] hover:bg-[#F5F4F0] hover:text-[#FF7102] transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h3a1 1 0 100-2H6zm0 4a1 1 0 000 2h6a1 1 0 100-2H6z" clipRule="evenodd" />
+          </svg>
+        </button>
+        <button type="button" onClick={onEdit} title="Edit deal"
+          className="rounded-lg border border-[#E8E5DE] bg-white p-1.5 text-[#9A958E] hover:bg-[#F5F4F0] transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+          </svg>
+        </button>
+        <button type="button" onClick={onDelete} title="Delete deal"
+          className="rounded-lg border border-red-100 bg-white p-1.5 text-red-300 hover:bg-red-50 hover:text-red-600 transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+          </svg>
+        </button>
+      </div>
+    </div>
   )
 }
 
 function DealsTableView({ filteredDeals, onViewDeal, onAddMeetingForDeal, onEditDeal, onDeleteDeal }) {
+  if (filteredDeals.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center">
+        <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[#F5F4F0] text-3xl">📊</div>
+        <p className="text-[14px] font-semibold text-[#1A1815]">No deals match your filters</p>
+        <p className="mt-1 text-[12px] text-[#9A958E]">Try adjusting your search or filters</p>
+      </div>
+    )
+  }
   return (
-    <div className="min-h-0 flex-1 overflow-auto bg-white">
-      <table className="min-w-full border-collapse text-sm">
-        <thead className="sticky top-0 border-b border-[#E8E5DE] bg-[#FAFAF8]/95 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#9A958E] backdrop-blur">
-          <tr>
-            <th className="px-4 py-3 text-left font-semibold">Name</th>
-            <th className="px-4 py-3 text-left font-semibold">POC</th>
-            <th className="px-4 py-3 text-left font-semibold">Description</th>
-            <th className="px-4 py-3 text-left font-semibold">Last meeting</th>
-            <th className="px-4 py-3 text-left font-semibold">Score</th>
-            <th className="px-4 py-3 text-right font-semibold">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredDeals.length === 0 ? (
-            <tr>
-              <td colSpan={6} className="px-4 py-8 text-center text-xs text-neutral-500">
-                No deals match your filters yet.
-              </td>
-            </tr>
-          ) : (
-            filteredDeals.map((deal) => (
-              <DealsTableRow
-                key={deal.id}
-                deal={deal}
-                onView={() => onViewDeal(deal)}
-                onAddMeeting={() => onAddMeetingForDeal(deal)}
-                onEdit={() => onEditDeal(deal)}
-                onDelete={() => onDeleteDeal(deal)}
-              />
-            ))
-          )}
-        </tbody>
-      </table>
+    <div className="space-y-2 pb-4">
+      {filteredDeals.map((deal) => (
+        <DealCard
+          key={deal.id}
+          deal={deal}
+          onView={() => onViewDeal(deal)}
+          onAddMeeting={() => onAddMeetingForDeal(deal)}
+          onEdit={() => onEditDeal(deal)}
+          onDelete={() => onDeleteDeal(deal)}
+        />
+      ))}
     </div>
   )
 }
@@ -488,77 +525,74 @@ function DealsPage() {
           </div>
         }
       >
-        <div className="flex h-full flex-col">
+        <div className="flex h-full flex-col gap-4">
           {/* Filter bar */}
-          <div className="border-b border-[#E8E5DE] px-3 pb-2 pt-2 bg-[#FAFAF8]">
-            <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Search */}
+            <div className="flex items-center gap-2 rounded-xl border border-[#E8E5DE] bg-white px-3 py-2 shadow-[0_1px_2px_rgba(26,24,21,0.04)] focus-within:border-[#FF7102] transition-colors">
+              <svg className="h-3.5 w-3.5 shrink-0 text-[#C8C3BB]" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M12.9 14.32a8 8 0 111.414-1.414l4.387 4.387-1.414 1.414-4.387-4.387zM8 14A6 6 0 108 2a6 6 0 000 12z" clipRule="evenodd" />
+              </svg>
               <input
                 type="text"
-                placeholder="Search…"
+                placeholder="Search company, sector…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-44 rounded-xl border border-[#E8E5DE] bg-white px-3 py-1.5 text-sm text-[#1A1815] placeholder:text-[#C8C3BB] focus:border-[#FF7102] focus:outline-none"
+                className="w-44 bg-transparent text-[13px] text-[#1A1815] placeholder:text-[#C8C3BB] focus:outline-none"
               />
-              <div className="flex items-center gap-1.5">
-                <span className="whitespace-nowrap text-xs text-[#9A958E]">Min score</span>
-                <input
-                  type="number" min="0" max="10" step="0.5"
-                  value={minScore} onChange={(e) => setMinScore(e.target.value)}
-                  className="w-16 rounded-xl border border-[#E8E5DE] bg-white px-2 py-1.5 text-sm text-[#1A1815] focus:border-[#FF7102] focus:outline-none"
-                />
-              </div>
-              <select
-                value={industryFilter} onChange={(e) => setIndustryFilter(e.target.value)}
-                className="rounded-xl border border-[#E8E5DE] bg-white px-2 py-1.5 text-sm text-[#1A1815] focus:border-[#FF7102] focus:outline-none max-w-[140px]"
-              >
-                {industries.map((industry) => (
-                  <option key={industry} value={industry}>{industry}</option>
-                ))}
-              </select>
-              {/* Score sort */}
-              <button
-                type="button"
-                onClick={() => handleSort('score')}
-                title="Sort by founder score"
-                className={`flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-medium whitespace-nowrap transition-colors ${sortField === 'score'
-                  ? 'border-[#FF7102] bg-[#FFEFE2] text-[#FF7102]'
-                  : 'border-[#E8E5DE] bg-white text-[#5A5650] hover:bg-[#F5F4F0]'
-                  }`}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-                  {(sortField !== 'score' || sortOrder === 'desc')
-                    ? <path d="M3 3a1 1 0 000 2h11a1 1 0 100-2H3zM3 7a1 1 0 000 2h7a1 1 0 100-2H3zM3 11a1 1 0 100 2h4a1 1 0 100-2H3zM15 9a1 1 0 10-2 0v5.586l-1.293-1.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L15 14.586V9z" />
-                    : <path d="M3 3a1 1 0 000 2h11a1 1 0 100-2H3zM3 7a1 1 0 000 2h5a1 1 0 000-2H3zM3 11a1 1 0 100 2h4a1 1 0 100-2H3zM13 16a1 1 0 102 0v-5.586l1.293 1.293a1 1 0 001.414-1.414l-3-3a1 1 0 00-1.414 0l-3 3a1 1 0 001.414 1.414L13 10.414V16z" />
-                  }
-                </svg>
-                Score {sortField === 'score' ? (sortOrder === 'desc' ? '↓' : '↑') : ''}
-              </button>
-
-              {/* Date sort */}
-              <button
-                type="button"
-                onClick={() => handleSort('date')}
-                title="Sort by meeting date"
-                className={`flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-medium whitespace-nowrap transition-colors ${sortField === 'date'
-                  ? 'border-[#FF7102] bg-[#FFEFE2] text-[#FF7102]'
-                  : 'border-[#E8E5DE] bg-white text-[#5A5650] hover:bg-[#F5F4F0]'
-                  }`}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h3a1 1 0 100-2H6zm0 4a1 1 0 000 2h6a1 1 0 100-2H6z" clipRule="evenodd" />
-                </svg>
-                Date {sortField === 'date' ? (sortOrder === 'desc' ? '↓' : '↑') : ''}
-              </button>
             </div>
+
+            <div className="flex items-center gap-1.5 rounded-xl border border-[#E8E5DE] bg-white px-3 py-2 shadow-[0_1px_2px_rgba(26,24,21,0.04)]">
+              <span className="whitespace-nowrap text-[11px] text-[#9A958E]">Min score</span>
+              <input
+                type="number" min="0" max="10" step="0.5"
+                value={minScore} onChange={(e) => setMinScore(e.target.value)}
+                className="w-12 bg-transparent text-[13px] text-[#1A1815] focus:outline-none"
+              />
+            </div>
+
+            <select
+              value={industryFilter} onChange={(e) => setIndustryFilter(e.target.value)}
+              className="rounded-xl border border-[#E8E5DE] bg-white px-3 py-2 text-[13px] text-[#1A1815] shadow-[0_1px_2px_rgba(26,24,21,0.04)] focus:border-[#FF7102] focus:outline-none max-w-[160px]"
+            >
+              {industries.map((industry) => (
+                <option key={industry} value={industry}>{industry}</option>
+              ))}
+            </select>
+
+            <button
+              type="button"
+              onClick={() => handleSort('score')}
+              className={`flex items-center gap-1.5 rounded-xl border px-3 py-2 text-[12px] font-medium whitespace-nowrap transition-colors ${sortField === 'score'
+                  ? 'border-[#FF7102] bg-[#FFEFE2] text-[#FF7102]'
+                  : 'border-[#E8E5DE] bg-white text-[#5A5650] shadow-[0_1px_2px_rgba(26,24,21,0.04)] hover:bg-[#F5F4F0]'
+                }`}
+            >
+              Score {sortField === 'score' ? (sortOrder === 'desc' ? '↓' : '↑') : ''}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleSort('date')}
+              className={`flex items-center gap-1.5 rounded-xl border px-3 py-2 text-[12px] font-medium whitespace-nowrap transition-colors ${sortField === 'date'
+                  ? 'border-[#FF7102] bg-[#FFEFE2] text-[#FF7102]'
+                  : 'border-[#E8E5DE] bg-white text-[#5A5650] shadow-[0_1px_2px_rgba(26,24,21,0.04)] hover:bg-[#F5F4F0]'
+                }`}
+            >
+              Date {sortField === 'date' ? (sortOrder === 'desc' ? '↓' : '↑') : ''}
+            </button>
           </div>
 
-          <DealsTableView
-            filteredDeals={filteredDeals}
-            onViewDeal={handleViewDeal}
-            onAddMeetingForDeal={handleAddMeeting}
-            onEditDeal={d => setEditDeal(d)}
-            onDeleteDeal={d => setDeletingDeal(d)}
-          />
+          {/* Card list */}
+          <div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-[#E0DBD2] scrollbar-track-transparent">
+            <DealsTableView
+              filteredDeals={filteredDeals}
+              onViewDeal={handleViewDeal}
+              onAddMeetingForDeal={handleAddMeeting}
+              onEditDeal={d => setEditDeal(d)}
+              onDeleteDeal={d => setDeletingDeal(d)}
+            />
+          </div>
         </div>
       </PageShell>
 

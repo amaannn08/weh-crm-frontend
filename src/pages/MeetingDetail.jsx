@@ -63,11 +63,11 @@ function MeetingDetailPage() {
 
   return (
     <DealDetailContent dealId={dealId} onBack={() => navigate('/meetings')} backLabel="← Back to meetings">
-      <div className="rounded-2xl border border-[#E8E5DE] bg-white p-4 shadow-[0_1px_2px_rgba(26,24,21,0.04),0_1px_3px_rgba(26,24,21,0.06)]">
+      <div className="rounded-2xl border border-[#E8E5DE] bg-white px-6 py-5 shadow-[0_1px_2px_rgba(26,24,21,0.04),0_1px_3px_rgba(26,24,21,0.06)]">
         <MeetingNotesEditor
           dealId={dealId}
           meeting={meeting}
-          title="Meeting details"
+          title={meeting?.company || 'Meeting details'}
           showDelete
           showSave
           onDeleted={() => navigate('/meetings')}

@@ -115,13 +115,15 @@ function SidebarNav() {
   const onPortfolioNews = pathname.startsWith('/portfolio-news')
   const onAssistant = pathname.startsWith('/assistant')
 
-  const { deals, loadDeals, meetings } = useDealData()
+  const { deals, loadDeals, loadMeetings, meetings } = useDealData()
 
-  // Ensure deals are loaded regardless of which page the user lands on
-  useEffect(() => { loadDeals() }, [loadDeals])
+  // Ensure deals + meetings are loaded regardless of which page the user lands on
+  useEffect(() => { loadDeals(); loadMeetings() }, [loadDeals, loadMeetings])
 
-  // Recent deals: up to 4
-  const recentDeals = deals.slice(0, 4)
+  // Recent meetings under Evaluation — up to 4
+  const recentMeetings = meetings
+    .filter(m => m.status === 'Evaluation')
+    .slice(0, 4)
 
   return (
     <aside className="flex h-full w-60 shrink-0 flex-col border-r border-[#E8E5DE] bg-white">
@@ -146,16 +148,16 @@ function SidebarNav() {
 
         <div className="mx-2 h-px bg-[#E8E5DE]" />
 
-        {recentDeals.length > 0 && (
-          <SidebarSection title="Recent deals">
-            {recentDeals.map(deal => (
+        {recentMeetings.length > 0 && (
+          <SidebarSection title="Recent meetings">
+            {recentMeetings.map(m => (
               <RecentDealItem
-                key={deal.id}
-                id={deal.id}
-                company={deal.company}
-                sector={deal.sector}
-                status={deal.status}
-                score={deal.founder_final_score}
+                key={m.id}
+                id={m.deal_id}
+                company={m.company}
+                sector={m.sector}
+                status={m.status}
+                score={null}
               />
             ))}
           </SidebarSection>
