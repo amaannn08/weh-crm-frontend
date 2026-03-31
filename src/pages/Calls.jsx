@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
+import rehypeRaw from 'rehype-raw'
 import { routes, conversationUrl } from '../api/routes'
 import { apiHeaders, authFetch } from '../api/client'
 
@@ -23,15 +24,51 @@ const PROMPTS = [
 ]
 
 const markdownComponents = {
+  // Block elements
   p: ({ children }) => <p className="text-[13px] leading-relaxed [&:not(:last-child)]:mb-2">{children}</p>,
-  ul: ({ children }) => (
-    <ul className="my-2 list-disc list-inside space-y-1 text-[13px] leading-relaxed">{children}</ul>
-  ),
-  ol: ({ children }) => (
-    <ol className="my-2 list-decimal list-inside space-y-1 text-[13px] leading-relaxed">{children}</ol>
-  ),
+  h1: ({ children }) => <h1 className="mb-2 mt-3 text-[15px] font-semibold text-[#1A1815]">{children}</h1>,
+  h2: ({ children }) => <h2 className="mb-1.5 mt-3 text-[14px] font-semibold text-[#1A1815]">{children}</h2>,
+  h3: ({ children }) => <h3 className="mb-1 mt-2 text-[13px] font-semibold text-[#1A1815]">{children}</h3>,
+  ul: ({ children }) => <ul className="my-2 list-disc list-inside space-y-1 text-[13px] leading-relaxed">{children}</ul>,
+  ol: ({ children }) => <ol className="my-2 list-decimal list-inside space-y-1 text-[13px] leading-relaxed">{children}</ol>,
   li: ({ children }) => <li className="text-[13px] leading-relaxed">{children}</li>,
-  strong: ({ children }) => <strong className="font-semibold">{children}</strong>
+  blockquote: ({ children }) => (
+    <blockquote className="my-2 border-l-2 border-[#FF7102] pl-3 text-[13px] italic text-[#5A5650]">
+      {children}
+    </blockquote>
+  ),
+  hr: () => <hr className="my-3 border-[#E8E5DE]" />,
+  // Inline elements
+  strong: ({ children }) => <strong className="font-semibold text-[#1A1815]">{children}</strong>,
+  em: ({ children }) => <em className="italic">{children}</em>,
+  a: ({ href, children }) => (
+    <a href={href} target="_blank" rel="noopener noreferrer" className="text-[#FF7102] underline hover:opacity-80">
+      {children}
+    </a>
+  ),
+  // Code
+  code: ({ inline, children }) =>
+    inline ? (
+      <code className="rounded bg-[#F5F4F0] px-1 py-0.5 font-mono text-[11px] text-[#B85A12]">{children}</code>
+    ) : (
+      <code className="block w-full font-mono text-[11px]">{children}</code>
+    ),
+  pre: ({ children }) => (
+    <pre className="my-2 overflow-x-auto rounded-lg bg-[#1A1815] px-4 py-3 text-[11px] text-[#E8E5DE]">
+      {children}
+    </pre>
+  ),
+  // Tables
+  table: ({ children }) => (
+    <div className="my-2 overflow-x-auto rounded-lg border border-[#E8E5DE]">
+      <table className="min-w-full border-collapse text-[12px]">{children}</table>
+    </div>
+  ),
+  thead: ({ children }) => <thead className="bg-[#FAFAF8] text-[10px] uppercase tracking-[0.14em] text-[#9A958E]">{children}</thead>,
+  tbody: ({ children }) => <tbody>{children}</tbody>,
+  tr: ({ children }) => <tr className="border-b border-[#E8E5DE] last:border-0">{children}</tr>,
+  th: ({ children }) => <th className="px-3 py-2 text-left font-semibold">{children}</th>,
+  td: ({ children }) => <td className="px-3 py-2 text-[#5A5650]">{children}</td>,
 }
 
 function ScopePill({ active, dotColor, label, onClick }) {
@@ -491,8 +528,8 @@ function CallsPage() {
                         }`}
                     >
                       {message.role === 'assistant' ? (
-                        <div className="[&_p]:mb-2 [&_p:last-child]:mb-0">
-                          <ReactMarkdown components={markdownComponents}>
+                        <div className="[&_p]:mb-2 [&_p:last-child]:mb-0 [&_pre]:my-2 [&_table]:my-2">
+                          <ReactMarkdown components={markdownComponents} rehypePlugins={[rehypeRaw]}>
                             {message.content}
                           </ReactMarkdown>
                         </div>
