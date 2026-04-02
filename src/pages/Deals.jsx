@@ -271,7 +271,15 @@ function DealsTableView({ filteredDeals, onViewDeal, onAddMeetingForDeal, onEdit
 // ---------------------------------------------------------------------------
 function DealsPage() {
   const navigate = useNavigate()
-  const { deals, loadDeals, dealsLoading, updateDealInCache, meetings, removeMeetingFromCache } = useDealData()
+  const {
+    deals,
+    loadDeals,
+    loadMeetings,
+    dealsLoading,
+    updateDealInCache,
+    meetings,
+    removeMeetingFromCache
+  } = useDealData()
   const [error, setError] = useState(null)
   const [uploadStatus, setUploadStatus] = useState(null)
   const [ingesting, setIngesting] = useState(false)
@@ -300,8 +308,16 @@ function DealsPage() {
   }
 
   useEffect(() => {
-    loadDeals().catch(() => setError('Failed to load deals'))
-  }, [loadDeals])
+    Promise.all([loadDeals(true), loadMeetings(true)]).catch(() => setError('Failed to load deals'))
+  }, [loadDeals, loadMeetings])
+
+  const meetingByDealId = useMemo(() => {
+    const m = new Map()
+    for (const mt of meetings) {
+      if (mt.deal_id != null) m.set(String(mt.deal_id), mt)
+    }
+    return m
+  }, [meetings])
 
   const industries = useMemo(() => {
     const sectors = new Set(
@@ -314,10 +330,40 @@ function DealsPage() {
     const query = search.trim().toLowerCase()
     const min = Number(minScore) || 0
 
+    const dealMatchesSearch = (deal, q) => {
+      if (!q) return true
+      const meeting = meetingByDealId.get(deal.id != null ? String(deal.id) : '')
+      const hay = [
+        deal.company,
+        deal.poc,
+        deal.sector,
+        deal.business_model,
+        deal.exciting_reason,
+        deal.founder_name,
+        deal.company_domain,
+        deal.stage,
+        deal.status,
+        deal.risks,
+        deal.action_required,
+        deal.dd_recommendation,
+        deal.pass_reasons,
+        deal.watch_reasons,
+        deal.risk_level,
+        deal.source_file_name,
+        meeting?.exciting_reason,
+        meeting?.risks,
+        meeting?.action_required,
+        meeting?.status,
+        meeting?.pass_reasons,
+        meeting?.watch_reasons,
+        meeting?.poc,
+        meeting?.sector
+      ]
+      return hay.some((field) => String(field ?? '').toLowerCase().includes(q))
+    }
+
     const filtered = deals.filter((deal) => {
-      if (query && !deal.company.toLowerCase().includes(query) &&
-        !(deal.sector || '').toLowerCase().includes(query) &&
-        !(deal.business_model || '').toLowerCase().includes(query)) return false
+      if (query && !dealMatchesSearch(deal, query)) return false
       if (industryFilter !== 'All industries' && (deal.sector || '').trim() !== industryFilter) return false
       const score = deal.founder_final_score
       if (score != null && Number(score) < min) return false
@@ -340,7 +386,7 @@ function DealsPage() {
     })
 
     return filtered
-  }, [deals, industryFilter, minScore, search, sortField, sortOrder])
+  }, [deals, meetingByDealId, industryFilter, minScore, search, sortField, sortOrder])
 
   const summaryCards = useMemo(() => {
     const total = filteredDeals.length
@@ -494,7 +540,7 @@ function DealsPage() {
             <div className="flex items-center gap-2 flex-wrap">
               <input
                 type="text"
-                placeholder="Search…"
+                placeholder="Search company, POC, sector, notes…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-44 rounded-xl border border-[#E8E5DE] bg-white px-3 py-1.5 text-sm text-[#1A1815] placeholder:text-[#C8C3BB] focus:border-[#FF7102] focus:outline-none"

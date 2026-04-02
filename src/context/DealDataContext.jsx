@@ -37,7 +37,7 @@ export function DealDataProvider({ children }) {
       if (dealsLoading && !force) return
       setDealsLoading(true)
       try {
-        const data = await fetchDeals()
+        const data = await fetchDeals({ force })
         setDeals(data)
         setDealsLoaded(true)
       } finally {
@@ -93,7 +93,7 @@ export function DealDataProvider({ children }) {
       if (meetingsLoading && !force) return
       setMeetingsLoading(true)
       try {
-        const data = await fetchMeetings()
+        const data = await fetchMeetings({ force })
         setMeetings(Array.isArray(data) ? data : [])
         setMeetingsLoaded(true)
       } finally {

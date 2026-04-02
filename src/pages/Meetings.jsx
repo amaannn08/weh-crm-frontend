@@ -292,19 +292,26 @@ function MeetingsPage() {
 
   const filteredMeetings = useMemo(() => {
     const query = search.trim().toLowerCase()
+    const meetingMatchesSearch = (m, q) => {
+      if (!q) return true
+      const hay = [
+        m.company,
+        m.poc,
+        m.sector,
+        m.exciting_reason,
+        m.risks,
+        m.action_required,
+        m.status,
+        m.pass_reasons,
+        m.watch_reasons
+      ]
+      return hay.some((field) => (field || '').toLowerCase().includes(q))
+    }
+
     const filtered = meetings.filter((m) => {
       if (sectorFilter !== 'All sectors' && (m.sector || '').trim() !== sectorFilter) return false
-      if (!query) return true
-      const company = (m.company || '').toLowerCase()
-      const sector = (m.sector || '').toLowerCase()
-      const exciting = (m.exciting_reason || '').toLowerCase()
-      const poc = (m.poc || '').toLowerCase()
-      return (
-        company.includes(query) ||
-        sector.includes(query) ||
-        exciting.includes(query) ||
-        poc.includes(query)
-      )
+      if (!meetingMatchesSearch(m, query)) return false
+      return true
     })
 
     filtered.sort((a, b) => {
@@ -419,7 +426,7 @@ function MeetingsPage() {
             <div className="flex flex-wrap items-center gap-2">
               <input
                 type="text"
-                placeholder="Search…"
+                placeholder="Search company, POC, notes, status…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-44 rounded-xl border border-[#E8E5DE] bg-white px-3 py-1.5 text-sm text-[#1A1815] placeholder:text-[#C8C3BB] focus:border-[#FF7102] focus:outline-none"

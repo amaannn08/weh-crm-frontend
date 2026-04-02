@@ -2,7 +2,8 @@ import { apiHeaders, authFetch } from './client'
 import { routes, dealMeetingUrl } from './routes'
 import { cache } from './cache'
 
-export async function fetchMeetings() {
+export async function fetchMeetings(options = {}) {
+  if (options.force) cache.invalidate('meetings')
   return cache.get('meetings', async () => {
     const res = await authFetch(routes.meetings, { headers: apiHeaders() })
     if (!res.ok) throw new Error('Failed to fetch meetings')
@@ -35,6 +36,7 @@ export async function updateDealMeeting(dealId, patch) {
     body: JSON.stringify(patch)
   })
   if (!res.ok) throw new Error('Failed to update deal meeting')
+  cache.invalidate('meetings')
   return res.json()
 }
 

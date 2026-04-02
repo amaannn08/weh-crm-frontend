@@ -2,7 +2,8 @@ import { apiHeaders, authFetch } from './client'
 import { API_BASE, dealScoreUrl, dealUrl, routes } from './routes'
 import { cache } from './cache'
 
-export async function fetchDeals() {
+export async function fetchDeals(options = {}) {
+  if (options.force) cache.invalidate('deals')
   return cache.get('deals', async () => {
     const res = await authFetch(routes.deals, { headers: apiHeaders() })
     if (!res.ok) throw new Error('Failed to fetch deals')
@@ -34,6 +35,7 @@ export async function updateDeal(id, patch) {
     body: JSON.stringify(patch)
   })
   if (!res.ok) throw new Error('Failed to update deal')
+  cache.invalidate('deals')
   return res.json()
 }
 
