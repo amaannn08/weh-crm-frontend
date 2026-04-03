@@ -2,26 +2,34 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { deleteDealMeeting, updateDealMeeting } from '../api/meetings'
 import { useDealData } from '../context/DealDataContext'
 
-const STATUS_OPTIONS = ['New', 'Active', 'Evaluation', 'Pass', 'Watch', 'Portfolio']
+const STATUS_OPTIONS = [
+  'Active Diligence',
+  'Ghosted',
+  'IC',
+  'Milestone watch',
+  'Founder watch',
+  'Pass',
+  'Track',
+]
 
 const STATUS_STYLES = {
-  Pass: 'border-[#FEE4E2] bg-[#FEF3F2] text-[#B42318]',
-  Portfolio: 'border-[#C6E4D4] bg-[#E8F5EE] text-[#3D7A58]',
-  'Active Diligence': 'border-[#FFD0AB] bg-[#FFEFE2] text-[#FF7102]',
-  Watch: 'border-[#C5D4E8] bg-[#E8EEF7] text-[#3A5F8C]',
-  Active: 'border-[#FFD0AB] bg-[#FFEFE2] text-[#FF7102]',
-  Evaluation: 'border-[#E8D5B7] bg-[#FBF2EA] text-[#9A6B3F]',
-  New: 'border-[#C5D4E8] bg-[#E8EEF7] text-[#3A5F8C]',
+  'Active Diligence': 'border-[#C6E4D4] bg-[#E8F5EE] text-[#3D7A58]',
+  Ghosted:            'border-[#E8E5DE] bg-[#F5F4F0] text-[#5A5650]',
+  IC:                 'border-[#C6E4D4] bg-[#3D7A58] text-white',
+  'Milestone watch':  'border-[#E8C5A8] bg-[#F5E6D8] text-[#8B4A2E]',
+  'Founder watch':    'border-[#E0D9A0] bg-[#F5F0CC] text-[#7A6B1A]',
+  Pass:               'border-[#FEE4E2] bg-[#FEF3F2] text-[#B42318]',
+  Track:              'border-[#C5D4E8] bg-[#E8EEF7] text-[#3A5F8C]',
 }
 
 const STATUS_ACTIVE = {
-  Pass: 'bg-[#B42318] text-white border-[#B42318]',
-  Portfolio: 'bg-[#3D7A58] text-white border-[#3D7A58]',
-  'Active Diligence': 'bg-[#FF7102] text-white border-[#FF7102]',
-  Watch: 'bg-[#3A5F8C] text-white border-[#3A5F8C]',
-  Active: 'bg-[#FF7102] text-white border-[#FF7102]',
-  Evaluation: 'bg-[#9A6B3F] text-white border-[#9A6B3F]',
-  New: 'bg-[#3A5F8C] text-white border-[#3A5F8C]',
+  'Active Diligence': 'bg-[#3D7A58] text-white border-[#3D7A58]',
+  Ghosted:            'bg-[#5A5650] text-white border-[#5A5650]',
+  IC:                 'bg-[#2A5A40] text-white border-[#2A5A40]',
+  'Milestone watch':  'bg-[#8B4A2E] text-white border-[#8B4A2E]',
+  'Founder watch':    'bg-[#7A6B1A] text-white border-[#7A6B1A]',
+  Pass:               'bg-[#B42318] text-white border-[#B42318]',
+  Track:              'bg-[#3A5F8C] text-white border-[#3A5F8C]',
 }
 
 function getStatusStyle(status, isActive) {
@@ -90,7 +98,7 @@ function MeetingNotesEditor({
     pass_reasons: '',
     watch_reasons: '',
     action_required: '',
-    status: 'New'
+    status: 'Active Diligence'
   })
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -104,7 +112,7 @@ function MeetingNotesEditor({
       pass_reasons: effectiveMeeting?.pass_reasons || '',
       watch_reasons: effectiveMeeting?.watch_reasons || '',
       action_required: effectiveMeeting?.action_required || '',
-      status: effectiveMeeting?.status || 'New'
+      status: effectiveMeeting?.status || 'Active Diligence'
     })
   }, [
     effectiveMeeting?.id,
@@ -282,7 +290,7 @@ function MeetingNotesEditor({
               key={opt}
               type="button"
               onClick={() => setForm((prev) => ({ ...prev, status: opt }))}
-              className={`rounded-full border px-3 py-1 text-[10px] font-mono font-semibold uppercase tracking-[0.08em] transition-all ${getStatusStyle(opt, form.status === opt)}`}
+              className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition-all ${getStatusStyle(opt, form.status === opt)}`}
             >
               {opt}
             </button>

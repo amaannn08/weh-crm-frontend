@@ -121,9 +121,9 @@ function SidebarNav() {
   // Ensure deals + meetings are loaded regardless of which page the user lands on
   useEffect(() => { loadDeals(); loadMeetings() }, [loadDeals, loadMeetings])
 
-  // Recent meetings under Evaluation — up to 4
+  // Recent meetings under Active Diligence — up to 4
   const recentMeetings = meetings
-    .filter(m => m.status === 'Evaluation')
+    .filter(m => m.status === 'Active Diligence')
     .slice(0, 4)
 
   return (
