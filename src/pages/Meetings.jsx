@@ -115,8 +115,35 @@ function DealPickerModal({ deals, onClose, onSelectDeal }) {
 // ---------------------------------------------------------------------------
 // Table
 // ---------------------------------------------------------------------------
+const STATUS_BADGE = {
+  // ── Current statuses ──────────────────────────────────────────────────────
+  'Active Diligence': 'border-[#C6E4D4] bg-[#E8F5EE] text-[#3D7A58]',
+  Ghosted:            'border-[#E8E5DE] bg-[#F5F4F0] text-[#5A5650]',
+  IC:                 'border-[#C6E4D4] bg-[#3D7A58] text-white',
+  'Milestone watch':  'border-[#E8C5A8] bg-[#F5E6D8] text-[#8B4A2E]',
+  'Founder watch':    'border-[#E0D9A0] bg-[#F5F0CC] text-[#7A6B1A]',
+  Pass:               'border-[#FEE4E2] bg-[#FEF3F2] text-[#B42318]',
+  Track:              'border-[#C5D4E8] bg-[#E8EEF7] text-[#3A5F8C]',
+  // ── Legacy statuses (existing DB records) ─────────────────────────────────
+  Evaluation:         'border-[#FFD0AB] bg-[#FFEFE2] text-[#FF7102]',
+  'Working on it':    'border-[#C6E4D4] bg-[#E8F5EE] text-[#3D7A58]',
+  New:                'border-[#C5D4E8] bg-[#E8EEF7] text-[#3A5F8C]',
+  Active:             'border-[#FFD0AB] bg-[#FFEFE2] text-[#FF7102]',
+  Watch:              'border-[#C5D4E8] bg-[#E8EEF7] text-[#3A5F8C]',
+  Portfolio:          'border-[#C6E4D4] bg-[#E8F5EE] text-[#3D7A58]',
+}
+
+function StatusBadge({ status }) {
+  if (!status) return <span className="text-sm text-[#C8C3BB]">—</span>
+  const cls = STATUS_BADGE[status] ?? 'border-[#E8E5DE] bg-white text-[#5A5650]'
+  return (
+    <span className={`inline-flex items-center rounded-lg border px-2.5 py-1 text-xs font-semibold ${cls}`}>
+      {status}
+    </span>
+  )
+}
+
 function MeetingsTableRow({ meeting, onView, onAddMeeting, onDelete }) {
-  const lastMeeting = meeting.meeting_date || meeting.date || null
   const score = meeting.conviction_score ?? null
   const description = (meeting.exciting_reason || '').trim()
 
@@ -132,8 +159,8 @@ function MeetingsTableRow({ meeting, onView, onAddMeeting, onDelete }) {
       <td className="max-w-[20rem] px-4 py-3 align-top text-sm text-[#5A5650]">
         <div className="line-clamp-2">{description || '—'}</div>
       </td>
-      <td className="px-4 py-3 align-top text-sm text-[#5A5650]">
-        {lastMeeting ? formatDate(lastMeeting) : '—'}
+      <td className="px-4 py-3 align-top">
+        <StatusBadge status={meeting.status} />
       </td>
       <td className="px-4 py-3 align-top text-sm font-medium text-[#1A1815]">
         {score != null && score !== '' ? Number(score).toFixed(1) : '—'}
@@ -198,7 +225,7 @@ function MeetingsTableView({ rows, dealsById, onViewDeal, onAddMeeting, onDelete
             <th className="px-4 py-3 text-left font-semibold">Name</th>
             <th className="px-4 py-3 text-left font-semibold">POC</th>
             <th className="px-4 py-3 text-left font-semibold">Description</th>
-            <th className="px-4 py-3 text-left font-semibold">Last meeting</th>
+            <th className="px-4 py-3 text-left font-semibold">Status</th>
             <th className="px-4 py-3 text-left font-semibold">Score</th>
             <th className="px-4 py-3 text-right font-semibold">Actions</th>
           </tr>
