@@ -8,6 +8,7 @@ import DealDetailPage from './pages/DealDetail'
 import MeetingsPage from './pages/Meetings'
 import MeetingDetailPage from './pages/MeetingDetail'
 import PortfolioNewsPage from './pages/PortfolioNews'
+import SeedFounderPage from './pages/SeedFounder'
 import LoginPage from './pages/Login'
 import { useAuth } from './context/AuthContext'
 
@@ -120,6 +121,15 @@ function App() {
           element={
             <AuthedLayout>
               <PortfolioNewsPage />
+            </AuthedLayout>
+          }
+        />
+
+        <Route
+          path="/seed-founder"
+          element={
+            <AuthedLayout>
+              <SeedFounderPage />
             </AuthedLayout>
           }
         />
