@@ -116,3 +116,20 @@ export async function ingestTranscript(file) {
   return res.json()
 }
 
+export async function ingestTranscriptForDeal(dealId, file) {
+  const formData = new FormData()
+  formData.append('transcript', file)
+  const base = API_BASE ? `${API_BASE}/deals` : '/api/deals'
+  const res = await fetch(`${base}/${dealId}/ingest-transcript`, {
+    method: 'POST',
+    headers: apiHeaders(null),
+    body: formData
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || 'Failed to ingest transcript for deal')
+  }
+  return res.json()
+}
+
+

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { updateDeal, uploadDealFiles, deleteDealFile, dealFileUrl } from '../api/deals'
+import { updateDeal, uploadDealFiles, deleteDealFile, dealFileUrl, ingestTranscriptForDeal } from '../api/deals'
 import { useDealData } from '../context/DealDataContext'
 
 function formatDateForInput(value) {
@@ -51,6 +51,12 @@ export function DealDetailContent({ dealId, onBack, children, backLabel = '← B
   const [isEditing, setIsEditing] = useState(false)
   const [form, setForm] = useState({})
   const [saving, setSaving] = useState(false)
+
+  // Transcript ingest state
+  const transcriptInputRef = useRef(null)
+  const [ingesting, setIngesting] = useState(false)
+  const [ingestResult, setIngestResult] = useState(null) // 'success' | 'error'
+  const [ingestError, setIngestError] = useState('')
 
   useEffect(() => {
     let cancelled = false
@@ -310,6 +316,26 @@ export function DealDetailContent({ dealId, onBack, children, backLabel = '← B
           : '',
       archetype: scoreData?.softScore?.archetype ?? ''
     })
+  }
+
+  const handleIngestTranscript = async () => {
+    if (!deal || !transcriptInputRef.current?.files?.length) return
+    const file = transcriptInputRef.current.files[0]
+    setIngesting(true)
+    setIngestResult(null)
+    setIngestError('')
+    try {
+      await ingestTranscriptForDeal(deal.id, file)
+      // Refresh the deal bundle so scores/insights update
+      await loadDealBundle(dealId)
+      setIngestResult('success')
+      if (transcriptInputRef.current) transcriptInputRef.current.value = ''
+    } catch (e) {
+      setIngestError(e.message || 'Failed to ingest transcript')
+      setIngestResult('error')
+    } finally {
+      setIngesting(false)
+    }
   }
 
   const handleUploadFiles = async () => {
@@ -781,6 +807,48 @@ export function DealDetailContent({ dealId, onBack, children, backLabel = '← B
             )}
           </div>
         </div>
+        {/* Ingest Transcript Card */}
+        <div className="rounded-2xl border border-[#E8E5DE] bg-white p-4 space-y-3 shadow-[0_1px_2px_rgba(26,24,21,0.04),0_1px_3px_rgba(26,24,21,0.06)]">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-[#9A958E]">
+              Ingest Transcript
+            </h2>
+          </div>
+          <div className="text-[11px] text-[#9A958E]">
+            Upload a <span className="font-medium text-[#5A5650]">.docx</span> transcript to extract insights and update founder scores — linked directly to this deal, no company name needed.
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <input
+              ref={transcriptInputRef}
+              type="file"
+              accept=".docx"
+              disabled={ingesting}
+              className="text-[11px] text-[#5A5650] file:mr-2 file:rounded-md file:border file:border-[#E8E5DE] file:bg-white file:px-3 file:py-1.5 file:text-xs file:text-[#1A1815] hover:file:bg-[#F5F4F0] disabled:opacity-60"
+            />
+            <button
+              type="button"
+              onClick={handleIngestTranscript}
+              disabled={ingesting}
+              className="shrink-0 rounded-full bg-[#1A1815] px-4 py-1.5 text-xs font-medium text-white hover:bg-[#2d2a26] disabled:opacity-60 transition-colors"
+            >
+              {ingesting ? 'Ingesting…' : 'Ingest'}
+            </button>
+          </div>
+          {ingestResult === 'success' && (
+            <div className="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[12px] text-emerald-700">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 shrink-0">
+                <path fillRule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm3.857-9.809a.75.75 0 0 0-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 1 0-1.06 1.061l2.5 2.5a.75.75 0 0 0 1.137-.089l4-5.5Z" clipRule="evenodd" />
+              </svg>
+              Transcript ingested — scores and insights updated.
+            </div>
+          )}
+          {ingestResult === 'error' && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-700">
+              {ingestError}
+            </div>
+          )}
+        </div>
+
         <div className="rounded-2xl border border-[#E8E5DE] bg-white p-4 space-y-3 shadow-[0_1px_2px_rgba(26,24,21,0.04),0_1px_3px_rgba(26,24,21,0.06)]">
           <div className="flex items-center justify-between gap-2">
             <h2 className="text-xs font-semibold uppercase tracking-wide text-[#9A958E]">
