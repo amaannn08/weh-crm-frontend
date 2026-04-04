@@ -326,8 +326,15 @@ export function DealDetailContent({ dealId, onBack, children, backLabel = '← B
     setIngestError('')
     try {
       await ingestTranscriptForDeal(deal.id, file)
-      // Refresh the deal bundle so scores/insights update
-      await loadDealBundle(dealId)
+      // Force-fetch fresh bundle bypassing cache, then sync local state
+      const fresh = await loadDealBundle(dealId, { force: true })
+      setDeal(fresh.deal)
+      setScoreData({
+        softScore: fresh.softScore ?? null,
+        hardScore: fresh.hardScore ?? null,
+        finalScore: fresh.finalScore ?? null
+      })
+      setFiles(fresh.files || [])
       setIngestResult('success')
       if (transcriptInputRef.current) transcriptInputRef.current.value = ''
     } catch (e) {

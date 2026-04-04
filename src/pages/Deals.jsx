@@ -308,7 +308,7 @@ function DealsPage() {
   }
 
   useEffect(() => {
-    Promise.all([loadDeals(true), loadMeetings(true)]).catch(() => setError('Failed to load deals'))
+    Promise.all([loadDeals(), loadMeetings()]).catch(() => setError('Failed to load deals'))
   }, [loadDeals, loadMeetings])
 
   const meetingByDealId = useMemo(() => {

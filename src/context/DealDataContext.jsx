@@ -1,6 +1,8 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { fetchDeals, fetchDeal } from '../api/deals'
 import { fetchMeetings } from '../api/meetings'
+import { fetchNews, fetchCompanies } from '../api/news'
+import { fetchConversations } from '../api/conversations'
 import { useAuth } from './AuthContext'
 
 const DealDataContext = createContext(null)
@@ -19,16 +21,29 @@ export function DealDataProvider({ children }) {
 
   const { isAuthenticated } = useAuth()
 
-  // ── Eager fetch: re-run whenever the user logs in (token changes) ───────────
+  // ── Eager prefetch: fires immediately when JWT is present ───────────────────
+  // All 4 requests run in parallel. Deals + meetings update React state so
+  // Dashboard and sidebar populate instantly. News + companies just warm the
+  // cache.js store so PortfolioNews opens with no loading delay.
   useEffect(() => {
     if (!isAuthenticated) return
+
+    // Deals — populate context state
     fetchDeals()
       .then(data => { setDeals(data); setDealsLoaded(true) })
-      .catch(() => { })
+      .catch(() => {})
+
+    // Meetings — populate context state
     fetchMeetings()
       .then(data => { setMeetings(Array.isArray(data) ? data : []); setMeetingsLoaded(true) })
-      .catch(() => { })
-  }, [isAuthenticated]) // re-runs on login AND on initial mount when token is present
+      .catch(() => {})
+
+    // News + companies — warm cache only (results stored in cache.js, not React state)
+    fetchNews().catch(() => {})
+    fetchCompanies().catch(() => {})
+    // Conversations — warm cache so Calls/Agent page opens instantly
+    fetchConversations().catch(() => {})
+  }, [isAuthenticated])
 
   // ── Deals loaders ───────────────────────────────────────────────────────────
   const loadDeals = useCallback(
@@ -48,8 +63,8 @@ export function DealDataProvider({ children }) {
   )
 
   const loadDealBundle = useCallback(
-    async (id) => {
-      if (dealById[id]) return dealById[id]
+    async (id, { force = false } = {}) => {
+      if (!force && dealById[id]) return dealById[id]
       const bundle = await fetchDeal(id)
       setDealById((prev) => ({ ...prev, [id]: bundle }))
       if (bundle.deal) {

@@ -1,8 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import rehypeRaw from 'rehype-raw'
-import { routes, conversationUrl } from '../api/routes'
+import { routes } from '../api/routes'
 import { apiHeaders, authFetch } from '../api/client'
+import {
+  fetchConversations,
+  fetchConversationMessages,
+  createConversation,
+  deleteConversation
+} from '../api/conversations'
 
 const PROMPTS = [
   {
@@ -133,15 +139,10 @@ function CallsPage() {
   const hasStarted = messages.length > 0
 
   useEffect(() => {
-    const fetchConversations = async () => {
-      try {
-        const res = await authFetch(routes.conversations, { headers: apiHeaders() })
-        if (!res.ok) return
-        const data = await res.json()
-        if (!Array.isArray(data)) return
+    fetchConversations()
+      .then((data) => {
         setSessions((prev) => {
-          const byId = new Map(prev.map((session) => [session.id, session]))
-
+          const byId = new Map(prev.map((s) => [s.id, s]))
           data.forEach((c) => {
             const existing = byId.get(c.id)
             if (existing) {
@@ -159,17 +160,12 @@ function CallsPage() {
               })
             }
           })
-
           return Array.from(byId.values()).sort(
             (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
           )
         })
-      } catch {
-        // ignore fetch errors for now
-      }
-    }
-
-    fetchConversations()
+      })
+      .catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -194,23 +190,16 @@ function CallsPage() {
     // If there is no active session yet, create one in the backend
     if (!targetSessionId) {
       try {
-        const createRes = await authFetch(routes.conversations, {
-          method: 'POST',
-          headers: apiHeaders(),
-          body: JSON.stringify({ title: '' })
-        })
-        if (createRes.ok) {
-          const created = await createRes.json()
-          targetSessionId = created.id
-          const newSession = {
-            id: created.id,
-            name: created.title || 'New session',
-            messages: [],
-            createdAt: created.created_at
-          }
-          setSessions((prev) => [newSession, ...prev])
-          setActiveSessionId(created.id)
+        const created = await createConversation('')
+        targetSessionId = created.id
+        const newSession = {
+          id: created.id,
+          name: created.title || 'New session',
+          messages: [],
+          createdAt: created.created_at
         }
+        setSessions((prev) => [newSession, ...prev])
+        setActiveSessionId(created.id)
       } catch {
         // fall back to non-persistent session if creation fails
         targetSessionId = targetSessionId || `local-${Date.now()}`
@@ -386,18 +375,9 @@ function CallsPage() {
   }
 
   const handleNewChat = () => {
-    (async () => {
+    ;(async () => {
       try {
-        const res = await authFetch(routes.conversations, {
-          method: 'POST',
-          headers: apiHeaders(),
-          body: JSON.stringify({ title: '' })
-        })
-        if (!res.ok) {
-          setError('Failed to create session. Please try again.')
-          return
-        }
-        const data = await res.json()
+        const data = await createConversation('')
         const newSession = {
           id: data.id,
           name: data.title || 'New session',
@@ -413,16 +393,9 @@ function CallsPage() {
   }
 
   const handleDeleteSession = (sessionId) => {
-    (async () => {
+    ;(async () => {
       try {
-        const res = await authFetch(conversationUrl(sessionId), {
-          method: 'DELETE',
-          headers: apiHeaders()
-        })
-        if (!res.ok && res.status !== 404) {
-          setError('Failed to delete session. Please try again.')
-          return
-        }
+        await deleteConversation(sessionId)
         setError('')
         setSessions((prev) => {
           const remaining = prev.filter((session) => session.id !== sessionId)
@@ -441,36 +414,23 @@ function CallsPage() {
   const handleSelectSession = async (sessionId) => {
     setActiveSessionId(sessionId)
     const session = sessions.find((s) => s.id === sessionId)
-    if (!session || session.messages.length > 0) {
-      return
-    }
+    if (!session || session.messages.length > 0) return
     try {
-      const res = await authFetch(conversationUrl(sessionId), {
-        headers: apiHeaders()
-      })
-      if (!res.ok) return
-      const data = await res.json()
-      const loadedMessages =
-        Array.isArray(data.messages) &&
-        data.messages.map((m, index) => ({
-          id: `${sessionId}-${index}`,
-          role: m.role === 'assistant' ? 'assistant' : 'user',
-          content: m.content,
-          timestamp: new Date(m.created_at)
-        }))
-
+      const data = await fetchConversationMessages(sessionId)
+      if (!data) return
+      const loadedMessages = Array.isArray(data.messages)
+        ? data.messages.map((m, index) => ({
+            id: `${sessionId}-${index}`,
+            role: m.role === 'assistant' ? 'assistant' : 'user',
+            content: m.content,
+            timestamp: new Date(m.created_at)
+          }))
+        : []
       setSessions((prev) =>
-        prev.map((s) =>
-          s.id === sessionId
-            ? {
-              ...s,
-              messages: loadedMessages || []
-            }
-            : s
-        )
+        prev.map((s) => (s.id === sessionId ? { ...s, messages: loadedMessages } : s))
       )
     } catch {
-      // ignore load errors for now
+      // ignore load errors
     }
   }
 

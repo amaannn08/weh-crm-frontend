@@ -23,9 +23,11 @@ export async function fetchNews(params = {}) {
 }
 
 export async function fetchNewsSummary() {
-  const res = await authFetch(`${routes.news}/summary`, { headers: apiHeaders() })
-  if (!res.ok) throw new Error('Failed to fetch news summary')
-  return res.json()
+  return cache.get('news:summary', async () => {
+    const res = await authFetch(`${routes.news}/summary`, { headers: apiHeaders() })
+    if (!res.ok) throw new Error('Failed to fetch news summary')
+    return res.json()
+  }, 2 * 60 * 1000) // 2-min TTL — it's a computed aggregate
 }
 
 // ── Companies ─────────────────────────────────────────────────────────────────
@@ -51,9 +53,11 @@ export async function fetchNewsletters(params = {}) {
 }
 
 export async function fetchIssue(id) {
-  const res = await authFetch(`${routes.newsletters}/${id}`, { headers: apiHeaders() })
-  if (!res.ok) throw new Error('Failed to fetch issue')
-  return res.json()
+  return cache.get(`newsletter-issue:${id}`, async () => {
+    const res = await authFetch(`${routes.newsletters}/${id}`, { headers: apiHeaders() })
+    if (!res.ok) throw new Error('Failed to fetch issue')
+    return res.json()
+  })
 }
 
 export async function createNewsletter(title, periodLabel) {
@@ -74,6 +78,8 @@ export async function updateNewsletter(id, data) {
     body: JSON.stringify(data)
   })
   if (!res.ok) throw new Error('Failed to update newsletter')
+  cache.invalidate(`newsletter-issue:${id}`)
+  cache.invalidate('newsletters')
   return res.json()
 }
 

@@ -12,10 +12,12 @@ export async function fetchMeetings(options = {}) {
 }
 
 export async function fetchDealMeeting(dealId) {
-  const res = await authFetch(dealMeetingUrl(dealId), { headers: apiHeaders() })
-  if (res.status === 404) return null
-  if (!res.ok) throw new Error('Failed to fetch deal meeting')
-  return res.json()
+  return cache.get(`deal-meeting:${dealId}`, async () => {
+    const res = await authFetch(dealMeetingUrl(dealId), { headers: apiHeaders() })
+    if (res.status === 404) return null
+    if (!res.ok) throw new Error('Failed to fetch deal meeting')
+    return res.json()
+  })
 }
 
 export async function createDealMeeting(dealId, payload) {
@@ -26,6 +28,7 @@ export async function createDealMeeting(dealId, payload) {
   })
   if (!res.ok) throw new Error('Failed to create deal meeting')
   cache.invalidate('meetings')
+  cache.invalidate(`deal-meeting:${dealId}`)
   return res.json()
 }
 
@@ -37,6 +40,7 @@ export async function updateDealMeeting(dealId, patch) {
   })
   if (!res.ok) throw new Error('Failed to update deal meeting')
   cache.invalidate('meetings')
+  cache.invalidate(`deal-meeting:${dealId}`)
   return res.json()
 }
 
@@ -45,6 +49,7 @@ export async function deleteDealMeeting(dealId) {
   if (res.status === 404) return
   if (!res.ok) throw new Error('Failed to delete deal meeting')
   cache.invalidate('meetings')
+  cache.invalidate(`deal-meeting:${dealId}`)
 }
 
 
