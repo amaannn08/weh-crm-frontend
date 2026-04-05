@@ -145,7 +145,7 @@ function SidebarNav() {
           <FolderNavItem to="/deals" label="Deals" badge={deals.length || null} emoji="📊" active={onDeals} />
           <FolderNavItem to="/meetings" label="Meetings" badge={meetings.length || null} emoji="📅" active={onMeetings} />
           <FolderNavItem to="/portfolio-news" label="Portfolio News" badge={null} emoji="📰" active={onPortfolioNews} />
-          <FolderNavItem to="/seed-founder" label="Seed Founder" badge={null} emoji="🌱" active={onSeedFounder} />
+          <FolderNavItem to="/seed-founder" label="Omni" badge={null} emoji="🌱" active={onSeedFounder} />
         </div>
 
         <div className="mx-2 h-px bg-[#E8E5DE]" />
