@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react'
 import PageShell from '../components/PageShell'
+import { ChevronDown, Loader2, ArrowUp, Search, ArrowDownWideNarrow, ArrowUpNarrowWide, Target, GraduationCap, Landmark, PiggyBank, FileSpreadsheet, Image as ImageIcon } from 'lucide-react'
 
 // ---------------------------------------------------------------------------
 // Mock data
@@ -99,12 +100,12 @@ function TagInput({ tags, onTagsChange, placeholder }) {
 const FOUNDED_YEARS = ['2026','2024', '2025', '2023', '2022']
 const RESULT_COUNTS = [10, 25, 50, 100]
 const QUICK_START_TABS = [
-  { id: 'role',       emoji: '🎯',  label: 'By Role' },
-  { id: 'alma',       emoji: '🎓',  label: 'By Alma Mater' },
-  { id: 'lps',        emoji: '🏛️', label: 'Find LPs' },
-  { id: 'investors',  emoji: '🏦',  label: 'Find Investors' },
-  { id: 'csv',        emoji: '📋',  label: 'Import CSV' },
-  { id: 'lookalikes', emoji: '🖼️', label: 'Find Lookalikes' },
+  { id: 'role',       icon: Target,          label: 'By Role' },
+  { id: 'alma',       icon: GraduationCap,   label: 'By Alma Mater' },
+  { id: 'lps',        icon: Landmark,        label: 'Find LPs' },
+  { id: 'investors',  icon: PiggyBank,       label: 'Find Investors' },
+  { id: 'csv',        icon: FileSpreadsheet, label: 'Import CSV' },
+  { id: 'lookalikes', icon: ImageIcon,       label: 'Find Lookalikes' },
 ]
 
 // ---------------------------------------------------------------------------
@@ -155,7 +156,7 @@ function SearchForm({ onSearch }) {
       </div>
 
       {/* ── NLP search box ── */}
-      <div className="mx-auto w-full max-w-2xl">
+      <div className="mx-auto w-full max-w-4xl">
         <div className="rounded-2xl border border-[#E8E5DE] bg-white shadow-sm">
           {/* Input row */}
           <div className="flex items-center gap-3 px-4 pt-4 pb-3">
@@ -186,9 +187,7 @@ function SearchForm({ onSearch }) {
                   className="flex items-center gap-1.5 rounded-xl border border-[#E8E5DE] bg-white px-3 py-1.5 text-xs text-[#5A5650] hover:bg-[#F5F4F0] transition-colors">
                   <span className="text-[11px] text-[#9A958E]">Results</span>
                   <span className="font-semibold text-[#FF7102] text-sm">{resultCount}</span>
-                  <svg className="h-3 w-3 text-[#9A958E]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                  </svg>
+                  <ChevronDown className="h-3 w-3 text-[#9A958E]" />
                 </button>
                 {showCountDropdown && (
                   <div className="absolute right-0 top-full z-20 mt-1 w-20 overflow-hidden rounded-xl border border-[#E8E5DE] bg-white shadow-lg">
@@ -206,14 +205,9 @@ function SearchForm({ onSearch }) {
               <button id="seed-founder-search-btn" type="button" onClick={handleSearch} disabled={searching}
                 className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#1A1815] text-white shadow-sm hover:bg-[#333] disabled:opacity-60 transition-colors" title="Search">
                 {searching ? (
-                  <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-                  </svg>
+                  <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" />
-                  </svg>
+                  <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
                 )}
               </button>
             </div>
@@ -222,7 +216,7 @@ function SearchForm({ onSearch }) {
       </div>
 
       {/* ── Quick Start ── */}
-      <div className="mx-auto w-full max-w-2xl">
+      <div className="mx-auto w-full max-w-4xl">
         <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.22em] text-[#C8C3BB] font-mono">
           Quick Start
         </p>
@@ -232,7 +226,7 @@ function SearchForm({ onSearch }) {
           {QUICK_START_TABS.map(tab => (
             <button key={tab.id} type="button" id={`quick-tab-${tab.id}`} onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-1.5 px-3 py-2.5 text-xs font-medium transition-colors border-b-2 -mb-px ${activeTab === tab.id ? 'border-[#FF7102] text-[#FF7102]' : 'border-transparent text-[#5A5650] hover:text-[#1A1815]'}`}>
-              <span>{tab.emoji}</span>
+              <tab.icon className="h-4 w-4" />
               <span>{tab.label}</span>
             </button>
           ))}
@@ -262,9 +256,7 @@ function SearchForm({ onSearch }) {
                       className="w-full appearance-none rounded-xl border border-[#E8E5DE] bg-white px-3 py-2.5 pr-8 text-sm text-[#1A1815] focus:border-[#FF7102] focus:outline-none">
                       {['All India','Bengaluru','Mumbai','Delhi NCR','Hyderabad','Chennai','Pune'].map(o => <option key={o}>{o}</option>)}
                     </select>
-                    <svg className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#9A958E]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                    </svg>
+                    <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9A958E]" />
                   </div>
                 </div>
 
@@ -282,9 +274,7 @@ function SearchForm({ onSearch }) {
                       className="w-full appearance-none rounded-xl border border-[#E8E5DE] bg-white px-3 py-2.5 pr-8 text-sm text-[#1A1815] focus:border-[#FF7102] focus:outline-none">
                       {['Pre-seed or Seed','Series A','Series B','Series C+','Any stage'].map(o => <option key={o}>{o}</option>)}
                     </select>
-                    <svg className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#9A958E]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                    </svg>
+                    <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9A958E]" />
                   </div>
                 </div>
               </div>
@@ -339,10 +329,7 @@ function SearchForm({ onSearch }) {
                   className="flex items-center gap-2 rounded-full bg-[#1A1815] px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#333] disabled:opacity-60 transition-colors">
                   {searching ? (
                     <>
-                      <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-                      </svg>
+                      <Loader2 className="h-4 w-4 animate-spin" />
                       Searching…
                     </>
                   ) : <>🔍 Search &amp; View</>}
@@ -351,7 +338,7 @@ function SearchForm({ onSearch }) {
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-10 text-center">
-              <div className="mb-3 text-4xl">{QUICK_START_TABS.find(t => t.id === activeTab)?.emoji}</div>
+              {(() => { const Icon = QUICK_START_TABS.find(t => t.id === activeTab)?.icon; return Icon ? <div className="mb-3 flex justify-center text-[#FF7102]"><Icon className="h-8 w-8" /></div> : null })()}
               <p className="text-sm font-medium text-[#1A1815]">{QUICK_START_TABS.find(t => t.id === activeTab)?.label}</p>
               <p className="mt-1 text-xs text-[#9A958E]">Coming soon — this template is being built.</p>
             </div>
@@ -465,9 +452,7 @@ function ResultsView({ onNewSearch }) {
           </span>
           <button type="button" onClick={onNewSearch}
             className="inline-flex items-center gap-1.5 rounded-full bg-[#1A1815] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#333] transition-colors">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
-            </svg>
+            <Search className="h-3 w-3" />
             New search
           </button>
         </div>
@@ -490,9 +475,7 @@ function ResultsView({ onNewSearch }) {
             </select>
             <button type="button" onClick={() => setSortDir(d => d === 'desc' ? 'asc' : 'desc')}
               className="flex items-center gap-1.5 whitespace-nowrap rounded-xl border border-[#FF7102] bg-[#FFEFE2] px-3 py-2 text-xs font-medium text-[#FF7102] transition-colors">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M3 3a1 1 0 000 2h11a1 1 0 100-2H3zM3 7a1 1 0 000 2h7a1 1 0 100-2H3zM3 11a1 1 0 100 2h4a1 1 0 100-2H3zM15 9a1 1 0 10-2 0v5.586l-1.293-1.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L15 14.586V9z" />
-              </svg>
+              {(sortDir === 'desc') ? <ArrowDownWideNarrow className="h-3.5 w-3.5" /> : <ArrowUpNarrowWide className="h-3.5 w-3.5" />}
               Score {sortDir === 'desc' ? '↓' : '↑'}
             </button>
           </div>

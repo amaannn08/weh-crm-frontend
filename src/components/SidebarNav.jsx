@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useDealData } from '../context/DealDataContext'
+import { LayoutDashboard, Bot, BarChart3, Calendar, Newspaper, Globe } from 'lucide-react'
 
 
 const baseItemClasses =
@@ -17,7 +18,7 @@ function SidebarSection({ title, children }) {
   )
 }
 
-function FolderNavItem({ to, label, badge, emoji, active }) {
+function FolderNavItem({ to, label, badge, icon: Icon, active }) {
   return (
     <NavLink
       to={to}
@@ -41,7 +42,7 @@ function FolderNavItem({ to, label, badge, emoji, active }) {
                 ].join(' ')}
                 aria-hidden="true"
               >
-                {emoji}
+                {Icon && <Icon className="h-4 w-4" />}
               </span>
               <span className="min-w-0 truncate text-[12px] font-semibold text-[#5A5650]">
                 {label}
@@ -140,12 +141,12 @@ function SidebarNav() {
 
       <div className="flex-1 overflow-y-auto px-2 pb-4">
         <div className="space-y-1 px-2 pb-4">
-          <FolderNavItem to="/dashboard" label="Dashboard" badge={null} emoji="🏠" active={pathname === '/dashboard'} />
-          <FolderNavItem to="/assistant" label="Jarvis AI" badge={null} emoji="🤖" active={onAssistant} />
-          <FolderNavItem to="/deals" label="Deals" badge={deals.length || null} emoji="📊" active={onDeals} />
-          <FolderNavItem to="/meetings" label="Meetings" badge={meetings.length || null} emoji="📅" active={onMeetings} />
-          <FolderNavItem to="/portfolio-news" label="Portfolio News" badge={null} emoji="📰" active={onPortfolioNews} />
-          <FolderNavItem to="/seed-founder" label="Omni" badge={null} emoji="🕸️" active={onSeedFounder} />
+          <FolderNavItem to="/dashboard" label="Dashboard" badge={null} icon={LayoutDashboard} active={pathname === '/dashboard'} />
+          <FolderNavItem to="/assistant" label="Jarvis AI" badge={null} icon={Bot} active={onAssistant} />
+          <FolderNavItem to="/deals" label="Deals" badge={deals.length || null} icon={BarChart3} active={onDeals} />
+          <FolderNavItem to="/meetings" label="Meetings" badge={meetings.length || null} icon={Calendar} active={onMeetings} />
+          <FolderNavItem to="/portfolio-news" label="Portfolio News" badge={null} icon={Newspaper} active={onPortfolioNews} />
+          <FolderNavItem to="/seed-founder" label="Omni" badge={null} icon={Globe} active={onSeedFounder} />
         </div>
 
         <div className="mx-2 h-px bg-[#E8E5DE]" />

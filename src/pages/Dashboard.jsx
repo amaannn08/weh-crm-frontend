@@ -1,8 +1,9 @@
 import React, { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useDealData } from '../context/DealDataContext'
+import { CalendarDays, BarChart3, Calendar, Trophy, Search, XCircle, Star } from 'lucide-react'
 
-function StatCard({ label, value, sub, color, emoji, onClick }) {
+function StatCard({ label, value, sub, color, icon: Icon, onClick }) {
     return (
         <button
             type="button"
@@ -13,7 +14,7 @@ function StatCard({ label, value, sub, color, emoji, onClick }) {
                 <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-current opacity-60">
                     {label}
                 </span>
-                <span className="text-xl">{emoji}</span>
+                {Icon && <Icon className="h-5 w-5 opacity-80" />}
             </div>
             <div className="mt-3">
                 <div className="text-4xl font-bold tabular-nums">{value}</div>
@@ -54,7 +55,7 @@ function ActivityRow({ company, status, score, sector, meetingDate }) {
             <div className="flex items-center gap-3 shrink-0 ml-3">
                 {formattedDate && (
                     <span className="text-[11px] font-mono text-[#9A958E] whitespace-nowrap">
-                        📅 {formattedDate}
+                        <CalendarDays className="h-3 w-3 inline-block mr-1 -mt-0.5" />{formattedDate}
                     </span>
                 )}
                 <span className={`inline-flex items-center rounded-[4px] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] font-mono ${statusColor}`}>
@@ -133,7 +134,7 @@ function Dashboard() {
                     label="Total deals"
                     value={stats.total}
                     sub="Across all stages"
-                    emoji="📊"
+                    icon={BarChart3}
                     color="bg-white border-[#E8E5DE] text-[#1A1815]"
                     onClick={() => navigate('/deals')}
                 />
@@ -141,7 +142,7 @@ function Dashboard() {
                     label="Total meetings"
                     value={stats.totalMeetings}
                     sub="Deal meetings logged"
-                    emoji="📅"
+                    icon={Calendar}
                     color="bg-white border-[#E8E5DE] text-[#1A1815]"
                     onClick={() => navigate('/meetings')}
                 />
@@ -149,7 +150,7 @@ function Dashboard() {
                     label="Portfolio"
                     value={stats.portfolio}
                     sub="Invested"
-                    emoji="🏆"
+                    icon={Trophy}
                     color="bg-[#E8F5EE] border-[#B8DEC9] text-[#3D7A58]"
                     onClick={() => navigate('/deals')}
                 />
@@ -157,7 +158,7 @@ function Dashboard() {
                     label="Active"
                     value={stats.active}
                     sub="In diligence"
-                    emoji="🔍"
+                    icon={Search}
                     color="bg-[#FFEFE2] border-[#FFD0AB] text-[#FF7102]"
                     onClick={() => navigate('/deals')}
                 />
@@ -165,7 +166,7 @@ function Dashboard() {
                     label="Pass"
                     value={stats.pass}
                     sub="Not pursued"
-                    emoji="❌"
+                    icon={XCircle}
                     color="bg-[#FEF3F2] border-[#FECDCA] text-[#B42318]"
                     onClick={() => navigate('/deals')}
                 />
@@ -173,7 +174,7 @@ function Dashboard() {
                     label="Avg score"
                     value={stats.avgScore}
                     sub={`${deals.filter(d => d.founder_final_score != null).length} scored`}
-                    emoji="⭐"
+                    icon={Star}
                     color="bg-[#FAFAF8] border-[#E8E5DE] text-[#1A1815]"
                     onClick={() => navigate('/deals')}
                 />

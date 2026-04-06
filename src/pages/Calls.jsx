@@ -9,6 +9,7 @@ import {
   createConversation,
   deleteConversation
 } from '../api/conversations'
+import { Paperclip, CalendarDays } from 'lucide-react'
 
 const PROMPTS = [
   {
@@ -538,12 +539,12 @@ function CallsPage() {
                 placeholder="Ask anything about your calls…"
                 className="min-w-0 flex-1 bg-transparent text-[13px] text-[#1A1815] placeholder:text-[#C8C3BB] focus:outline-none"
               />
-              <span className="text-[15px] text-[#C8C3BB]" aria-hidden="true">
-                📎
-              </span>
-              <span className="text-[15px] text-[#C8C3BB]" aria-hidden="true">
-                📅
-              </span>
+              <button type="button" className="text-[#C8C3BB] hover:text-[#5A5650] transition-colors" aria-label="Attach file">
+                <Paperclip className="h-4 w-4" />
+              </button>
+              <button type="button" className="text-[#C8C3BB] hover:text-[#5A5650] transition-colors" aria-label="Schedule">
+                <CalendarDays className="h-4 w-4" />
+              </button>
               {isTyping ? (
                 <button
                   type="button"

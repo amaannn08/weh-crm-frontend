@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { updateDeal, uploadDealFiles, deleteDealFile, dealFileUrl, ingestTranscriptForDeal } from '../api/deals'
 import { useDealData } from '../context/DealDataContext'
+import { CheckCircle } from 'lucide-react'
 
 function formatDateForInput(value) {
   if (!value) return ''
@@ -843,9 +844,7 @@ export function DealDetailContent({ dealId, onBack, children, backLabel = '← B
           </div>
           {ingestResult === 'success' && (
             <div className="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-[12px] text-emerald-700">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5 shrink-0">
-                <path fillRule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm3.857-9.809a.75.75 0 0 0-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 1 0-1.06 1.061l2.5 2.5a.75.75 0 0 0 1.137-.089l4-5.5Z" clipRule="evenodd" />
-              </svg>
+              <CheckCircle className="w-3.5 h-3.5 shrink-0" />
               Transcript ingested — scores and insights updated.
             </div>
           )}

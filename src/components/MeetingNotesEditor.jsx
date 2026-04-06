@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { deleteDealMeeting, updateDealMeeting } from '../api/meetings'
 import { useDealData } from '../context/DealDataContext'
+import { User, CalendarDays, Sparkles, AlertTriangle, Ban, Eye, Zap } from 'lucide-react'
 
 const STATUS_OPTIONS = [
   'Active Diligence',
@@ -44,7 +45,7 @@ function formatMeetingDate(value) {
   return d.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
-function NoteSection({ emoji, label, accent, field, value, onChange, rows = 4, placeholder }) {
+function NoteSection({ icon: Icon, label, accent, field, value, onChange, rows = 4, placeholder }) {
   const accentBorder = {
     orange: 'border-l-[#FF7102]',
     red: 'border-l-[#B42318]',
@@ -56,7 +57,7 @@ function NoteSection({ emoji, label, accent, field, value, onChange, rows = 4, p
   return (
     <div className={`rounded-xl border border-[#E8E5DE] border-l-[3px] ${accentBorder} bg-white shadow-[0_1px_2px_rgba(26,24,21,0.04)] overflow-hidden`}>
       <div className="flex items-center gap-2 border-b border-[#F0EDE8] px-4 py-2.5">
-        <span className="text-[13px]">{emoji}</span>
+        {Icon && <Icon className="h-3.5 w-3.5 stroke-[2px]" />}
         <span className="text-[10px] font-mono font-semibold uppercase tracking-[0.18em] text-[#9A958E]">
           {label}
         </span>
@@ -230,17 +231,13 @@ function MeetingNotesEditor({
           <div className="mt-2 flex flex-wrap items-center gap-3">
             {effectiveMeeting?.poc && (
               <span className="flex items-center gap-1.5 text-[11px] text-[#9A958E]">
-                <svg className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                </svg>
+                <User className="h-3 w-3" />
                 {effectiveMeeting.poc}
               </span>
             )}
             {date && (
               <span className="flex items-center gap-1.5 text-[11px] font-mono text-[#9A958E]">
-                <svg className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
-                </svg>
+                <CalendarDays className="h-3 w-3" />
                 {date}
               </span>
             )}
@@ -300,7 +297,7 @@ function MeetingNotesEditor({
 
       {/* Note sections */}
       <NoteSection
-        emoji="✨"
+        icon={Sparkles}
         label="Why is this exciting?"
         accent="orange"
         field="exciting_reason"
@@ -311,7 +308,7 @@ function MeetingNotesEditor({
       />
 
       <NoteSection
-        emoji="⚠️"
+        icon={AlertTriangle}
         label="Risks"
         accent="red"
         field="risks"
@@ -323,7 +320,7 @@ function MeetingNotesEditor({
 
       <div className="grid gap-4 md:grid-cols-3">
         <NoteSection
-          emoji="🚫"
+          icon={Ban}
           label="Reasons to pass"
           accent="red"
           field="pass_reasons"
@@ -333,7 +330,7 @@ function MeetingNotesEditor({
           placeholder="Why we might pass…"
         />
         <NoteSection
-          emoji="👀"
+          icon={Eye}
           label="Reasons to watch"
           accent="blue"
           field="watch_reasons"
@@ -343,7 +340,7 @@ function MeetingNotesEditor({
           placeholder="What to monitor…"
         />
         <NoteSection
-          emoji="⚡"
+          icon={Zap}
           label="Action required"
           accent="amber"
           field="action_required"

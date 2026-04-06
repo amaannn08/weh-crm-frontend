@@ -4,6 +4,7 @@ import { useDealData } from '../context/DealDataContext'
 import PageShell from '../components/PageShell'
 import { createDeal, deleteDeal, ingestTranscript, updateDeal } from '../api/deals'
 import AddMeetingModal from '../components/AddMeetingModal'
+import { Plus, Upload, Loader2, CalendarPlus, Edit2, Trash2, ArrowDownWideNarrow, ArrowUpNarrowWide, CalendarDays } from 'lucide-react'
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -195,23 +196,17 @@ function DealsTableRow({ deal, onView, onAddMeeting, onEdit, onDelete }) {
           {/* Add meeting */}
           <button type="button" onClick={(e) => { e.stopPropagation(); onAddMeeting(); }} title="Add meeting"
             className="rounded-lg border border-[#E8E5DE] bg-white p-1.5 text-[#5A5650] hover:bg-[#F5F4F0] hover:text-[#FF7102]">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h3a1 1 0 100-2H6zm0 4a1 1 0 000 2h6a1 1 0 100-2H6z" clipRule="evenodd" />
-            </svg>
+            <CalendarPlus className="h-3.5 w-3.5" />
           </button>
           {/* Edit */}
           <button type="button" onClick={(e) => { e.stopPropagation(); onEdit(); }} title="Edit deal"
             className="rounded-lg border border-[#E8E5DE] bg-white p-1.5 text-[#5A5650] hover:bg-[#F5F4F0]">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-            </svg>
+            <Edit2 className="h-3.5 w-3.5" />
           </button>
           {/* Delete */}
           <button type="button" onClick={(e) => { e.stopPropagation(); onDelete(); }} title="Delete deal"
             className="rounded-lg border border-red-100 bg-white p-1.5 text-red-400 hover:bg-red-50 hover:text-red-600">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-            </svg>
+            <Trash2 className="h-3.5 w-3.5" />
           </button>
         </div>
       </td>
@@ -490,9 +485,7 @@ function DealsPage() {
             <button type="button" onClick={() => setShowAddModal(true)}
               className="inline-flex items-center gap-1.5 rounded-full bg-[#1A1815] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#333]">
 
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-              </svg>
+              <Plus className="h-3 w-3" />
               Add deal
             </button>
 
@@ -501,17 +494,12 @@ function DealsPage() {
               className="inline-flex items-center gap-1.5 rounded-full border border-[#E8E5DE] bg-white px-3 py-1.5 text-xs font-medium text-[#1A1815] shadow-sm hover:bg-[#F5F4F0] disabled:opacity-60">
               {ingesting ? (
                 <>
-                  <svg className="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-                  </svg>
+                  <Loader2 className="h-3 w-3 animate-spin" />
                   Ingesting…
                 </>
               ) : (
                 <>
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
-                  </svg>
+                  <Upload className="h-3.5 w-3.5" />
                   Upload transcript
                 </>
               )}
@@ -562,12 +550,7 @@ function DealsPage() {
                   : 'border-[#E8E5DE] bg-white text-[#5A5650] hover:bg-[#F5F4F0]'
                   }`}
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-                  {(sortField !== 'score' || sortOrder === 'desc')
-                    ? <path d="M3 3a1 1 0 000 2h11a1 1 0 100-2H3zM3 7a1 1 0 000 2h7a1 1 0 100-2H3zM3 11a1 1 0 100 2h4a1 1 0 100-2H3zM15 9a1 1 0 10-2 0v5.586l-1.293-1.293a1 1 0 00-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L15 14.586V9z" />
-                    : <path d="M3 3a1 1 0 000 2h11a1 1 0 100-2H3zM3 7a1 1 0 000 2h5a1 1 0 000-2H3zM3 11a1 1 0 100 2h4a1 1 0 100-2H3zM13 16a1 1 0 102 0v-5.586l1.293 1.293a1 1 0 001.414-1.414l-3-3a1 1 0 00-1.414 0l-3 3a1 1 0 001.414 1.414L13 10.414V16z" />
-                  }
-                </svg>
+                {(sortField !== 'score' || sortOrder === 'desc') ? <ArrowDownWideNarrow className="h-3.5 w-3.5" /> : <ArrowUpNarrowWide className="h-3.5 w-3.5" />}
                 Score {sortField === 'score' ? (sortOrder === 'desc' ? '↓' : '↑') : ''}
               </button>
 
@@ -581,9 +564,7 @@ function DealsPage() {
                   : 'border-[#E8E5DE] bg-white text-[#5A5650] hover:bg-[#F5F4F0]'
                   }`}
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h3a1 1 0 100-2H6zm0 4a1 1 0 000 2h6a1 1 0 100-2H6z" clipRule="evenodd" />
-                </svg>
+                <CalendarDays className="h-3.5 w-3.5" />
                 Date {sortField === 'date' ? (sortOrder === 'desc' ? '↓' : '↑') : ''}
               </button>
             </div>

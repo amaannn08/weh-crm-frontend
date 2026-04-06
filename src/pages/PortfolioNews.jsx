@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import PageShell from '../components/PageShell'
 import { StatChip } from '../components/PageShell'
+import { Newspaper, Printer } from 'lucide-react'
 import {
   fetchCompanies, fetchNews, fetchNewsletters,
   fetchIssue, createNewsletter, updateNewsletter, deleteNewsletter,
@@ -177,7 +178,7 @@ function BuilderTab({ issue, issueLoading, onRefreshIssue, onRemovePick, onAddSe
   if (!issue) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
-        <div className="text-4xl">📰</div>
+        <Newspaper className="h-10 w-10 text-[#5A5650] mb-2" />
         <div className="text-[15px] font-semibold text-[#1A1815]">No draft issue yet</div>
         <div className="text-[13px] text-[#9A958E]">Go to <strong>Portfolio News</strong> and click "+ Pick" on any item to start building.</div>
       </div>
@@ -438,7 +439,7 @@ function PreviewTab({ issueId, previewIssueId }) {
   if (!targetId) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
-        <div className="text-4xl">🖨️</div>
+        <Printer className="h-10 w-10 text-[#5A5650] mb-2" />
         <div className="text-[15px] font-semibold text-[#1A1815]">No issue to preview</div>
         <div className="text-[13px] text-[#9A958E]">Load or create an issue in the <strong>Builder</strong> or <strong>Issues</strong> tab first.</div>
       </div>

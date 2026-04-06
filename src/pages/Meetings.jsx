@@ -4,6 +4,7 @@ import { useDealData } from '../context/DealDataContext'
 import PageShell from '../components/PageShell'
 import AddMeetingModal from '../components/AddMeetingModal'
 import { deleteDealMeeting } from '../api/meetings'
+import { CalendarPlus, Trash2, Plus, CalendarDays } from 'lucide-react'
 
 function formatDate(value) {
   if (!value) return ''
@@ -173,13 +174,7 @@ function MeetingsTableRow({ meeting, onView, onAddMeeting, onDelete }) {
             title="Add meeting"
             className="rounded-lg border border-[#E8E5DE] bg-white p-1.5 text-[#5A5650] hover:bg-[#F5F4F0] hover:text-[#FF7102]"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-              <path
-                fillRule="evenodd"
-                d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h3a1 1 0 100-2H6zm0 4a1 1 0 000 2h6a1 1 0 100-2H6z"
-                clipRule="evenodd"
-              />
-            </svg>
+            <CalendarPlus className="h-3.5 w-3.5" />
           </button>
           <button
             type="button"
@@ -187,13 +182,7 @@ function MeetingsTableRow({ meeting, onView, onAddMeeting, onDelete }) {
             title="Delete meeting"
             className="rounded-lg border border-red-100 bg-white p-1.5 text-red-400 hover:bg-red-50 hover:text-red-600"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-              <path
-                fillRule="evenodd"
-                d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
-                clipRule="evenodd"
-              />
-            </svg>
+            <Trash2 className="h-3.5 w-3.5" />
           </button>
         </div>
       </td>
@@ -414,13 +403,7 @@ function MeetingsPage() {
               onClick={() => setShowDealPicker(true)}
               className="inline-flex items-center gap-1.5 rounded-full bg-[#1A1815] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#333]"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-                <path
-                  fillRule="evenodd"
-                  d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z"
-                  clipRule="evenodd"
-                />
-              </svg>
+              <Plus className="h-3 w-3" />
               Add meeting
             </button>
           </div>
@@ -459,13 +442,7 @@ function MeetingsPage() {
                 onClick={() => setSortOrder((o) => (o === 'desc' ? 'asc' : 'desc'))}
                 className="flex items-center gap-1.5 whitespace-nowrap rounded-xl border border-[#FF7102] bg-[#FFEFE2] px-3 py-2 text-xs font-medium text-[#FF7102] transition-colors"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-                  <path
-                    fillRule="evenodd"
-                    d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h3a1 1 0 100-2H6zm0 4a1 1 0 000 2h6a1 1 0 100-2H6z"
-                    clipRule="evenodd"
-                  />
-                </svg>
+                <CalendarDays className="h-3.5 w-3.5" />
                 Date {sortOrder === 'desc' ? '↓' : '↑'}
               </button>
             </div>
