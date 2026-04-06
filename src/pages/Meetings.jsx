@@ -148,7 +148,10 @@ function MeetingsTableRow({ meeting, onView, onAddMeeting, onDelete }) {
   const description = (meeting.exciting_reason || '').trim()
 
   return (
-    <tr className="border-b border-[#E8E5DE] transition-colors hover:bg-[#FAFAF8]">
+    <tr 
+      onClick={onView}
+      className="border-b border-[#E8E5DE] transition-colors hover:bg-[#FAFAF8] cursor-pointer"
+    >
       <td className="px-4 py-3 align-top">
         <div className="space-y-0.5">
           <div className="text-sm font-medium text-[#1A1815]">{meeting.company || '—'}</div>
@@ -166,7 +169,7 @@ function MeetingsTableRow({ meeting, onView, onAddMeeting, onDelete }) {
         <div className="flex items-center justify-end gap-1">
           <button
             type="button"
-            onClick={onAddMeeting}
+            onClick={(e) => { e.stopPropagation(); onAddMeeting(); }}
             title="Add meeting"
             className="rounded-lg border border-[#E8E5DE] bg-white p-1.5 text-[#5A5650] hover:bg-[#F5F4F0] hover:text-[#FF7102]"
           >
@@ -180,22 +183,7 @@ function MeetingsTableRow({ meeting, onView, onAddMeeting, onDelete }) {
           </button>
           <button
             type="button"
-            onClick={onView}
-            title="View meeting"
-            className="rounded-lg border border-[#E8E5DE] bg-white p-1.5 text-[#5A5650] hover:bg-[#F5F4F0]"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-              <path
-                fillRule="evenodd"
-                d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z"
-                clipRule="evenodd"
-              />
-            </svg>
-          </button>
-          <button
-            type="button"
-            onClick={onDelete}
+            onClick={(e) => { e.stopPropagation(); onDelete(); }}
             title="Delete meeting"
             className="rounded-lg border border-red-100 bg-white p-1.5 text-red-400 hover:bg-red-50 hover:text-red-600"
           >

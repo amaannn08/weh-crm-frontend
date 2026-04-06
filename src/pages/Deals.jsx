@@ -169,7 +169,10 @@ function DealsTableRow({ deal, onView, onAddMeeting, onEdit, onDelete }) {
   const description = (deal.business_model || deal.sector || '').trim()
 
   return (
-    <tr className="border-b border-[#E8E5DE] hover:bg-[#FAFAF8] transition-colors">
+    <tr 
+      onClick={onView}
+      className="border-b border-[#E8E5DE] hover:bg-[#FAFAF8] transition-colors cursor-pointer"
+    >
       <td className="px-4 py-3 align-top">
         <div className="space-y-0.5">
           <div className="text-sm font-medium text-[#1A1815]">{deal.company}</div>
@@ -190,29 +193,21 @@ function DealsTableRow({ deal, onView, onAddMeeting, onEdit, onDelete }) {
       <td className="px-4 py-3 align-top">
         <div className="flex justify-end items-center gap-1">
           {/* Add meeting */}
-          <button type="button" onClick={onAddMeeting} title="Add meeting"
+          <button type="button" onClick={(e) => { e.stopPropagation(); onAddMeeting(); }} title="Add meeting"
             className="rounded-lg border border-[#E8E5DE] bg-white p-1.5 text-[#5A5650] hover:bg-[#F5F4F0] hover:text-[#FF7102]">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h3a1 1 0 100-2H6zm0 4a1 1 0 000 2h6a1 1 0 100-2H6z" clipRule="evenodd" />
             </svg>
           </button>
-          {/* View */}
-          <button type="button" onClick={onView} title="View deal"
-            className="rounded-lg border border-[#E8E5DE] bg-white p-1.5 text-[#5A5650] hover:bg-[#F5F4F0]">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-              <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
-            </svg>
-          </button>
           {/* Edit */}
-          <button type="button" onClick={onEdit} title="Edit deal"
+          <button type="button" onClick={(e) => { e.stopPropagation(); onEdit(); }} title="Edit deal"
             className="rounded-lg border border-[#E8E5DE] bg-white p-1.5 text-[#5A5650] hover:bg-[#F5F4F0]">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
               <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
             </svg>
           </button>
           {/* Delete */}
-          <button type="button" onClick={onDelete} title="Delete deal"
+          <button type="button" onClick={(e) => { e.stopPropagation(); onDelete(); }} title="Delete deal"
             className="rounded-lg border border-red-100 bg-white p-1.5 text-red-400 hover:bg-red-50 hover:text-red-600">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
