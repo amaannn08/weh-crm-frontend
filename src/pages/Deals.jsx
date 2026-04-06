@@ -181,9 +181,6 @@ function DealsTableRow({ deal, onView, onAddMeeting, onEdit, onDelete }) {
       <td className="px-4 py-3 align-top text-sm text-[#5A5650]">
         {deal.poc || '—'}
       </td>
-      <td className="px-4 py-3 align-top text-sm text-[#5A5650] max-w-[20rem]">
-        <div className="line-clamp-2">{description || '—'}</div>
-      </td>
       <td className="px-4 py-3 align-top text-sm text-[#5A5650]">
         {lastMeeting ? formatDate(lastMeeting) : '—'}
       </td>
@@ -235,7 +232,6 @@ function DealsTableView({ filteredDeals, onViewDeal, onAddMeetingForDeal, onEdit
           <tr>
             <th className="px-4 py-3 text-left font-semibold">Name</th>
             <th className="px-4 py-3 text-left font-semibold">POC</th>
-            <th className="px-4 py-3 text-left font-semibold">Description</th>
             <th className="px-4 py-3 text-left font-semibold">Last meeting</th>
             <th className="px-4 py-3 text-left font-semibold">Score</th>
             <th className="px-4 py-3 text-right font-semibold">Actions</th>
@@ -244,7 +240,7 @@ function DealsTableView({ filteredDeals, onViewDeal, onAddMeetingForDeal, onEdit
         <tbody>
           {filteredDeals.length === 0 ? (
             <tr>
-              <td colSpan={6} className="px-4 py-8 text-center text-xs text-neutral-500">
+              <td colSpan={5} className="px-4 py-8 text-center text-xs text-neutral-500">
                 No deals match your filters yet.
               </td>
             </tr>

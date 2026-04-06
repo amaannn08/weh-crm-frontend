@@ -96,7 +96,7 @@ function TagInput({ tags, onTagsChange, placeholder }) {
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-const FOUNDED_YEARS = ['2024', '2025', '2023', '2022']
+const FOUNDED_YEARS = ['2026','2024', '2025', '2023', '2022']
 const RESULT_COUNTS = [10, 25, 50, 100]
 const QUICK_START_TABS = [
   { id: 'role',       emoji: '🎯',  label: 'By Role' },

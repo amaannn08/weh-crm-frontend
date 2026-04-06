@@ -156,9 +156,6 @@ function MeetingsTableRow({ meeting, onView, onAddMeeting, onDelete }) {
         </div>
       </td>
       <td className="px-4 py-3 align-top text-sm text-[#5A5650]">{meeting.poc || '—'}</td>
-      <td className="max-w-[20rem] px-4 py-3 align-top text-sm text-[#5A5650]">
-        <div className="line-clamp-2">{description || '—'}</div>
-      </td>
       <td className="px-4 py-3 align-top">
         <StatusBadge status={meeting.status} />
       </td>
@@ -224,7 +221,6 @@ function MeetingsTableView({ rows, dealsById, onViewDeal, onAddMeeting, onDelete
           <tr>
             <th className="px-4 py-3 text-left font-semibold">Name</th>
             <th className="px-4 py-3 text-left font-semibold">POC</th>
-            <th className="px-4 py-3 text-left font-semibold">Description</th>
             <th className="px-4 py-3 text-left font-semibold">Status</th>
             <th className="px-4 py-3 text-left font-semibold">Score</th>
             <th className="px-4 py-3 text-right font-semibold">Actions</th>
@@ -233,7 +229,7 @@ function MeetingsTableView({ rows, dealsById, onViewDeal, onAddMeeting, onDelete
         <tbody>
           {rows.length === 0 ? (
             <tr>
-              <td colSpan={6} className="px-4 py-8 text-center text-xs text-neutral-500">
+              <td colSpan={5} className="px-4 py-8 text-center text-xs text-neutral-500">
                 No meetings match your filters yet.
               </td>
             </tr>
