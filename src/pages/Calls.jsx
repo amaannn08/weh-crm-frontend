@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import rehypeRaw from 'rehype-raw'
+import remarkGfm from 'remark-gfm'
 import { routes } from '../api/routes'
 import { apiHeaders, authFetch } from '../api/client'
 import {
@@ -490,7 +491,7 @@ function CallsPage() {
                     >
                       {message.role === 'assistant' ? (
                         <div className="[&_p]:mb-2 [&_p:last-child]:mb-0 [&_pre]:my-2 [&_table]:my-2">
-                          <ReactMarkdown components={markdownComponents} rehypePlugins={[rehypeRaw]}>
+                          <ReactMarkdown components={markdownComponents} remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
                             {message.content}
                           </ReactMarkdown>
                         </div>

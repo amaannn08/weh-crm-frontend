@@ -144,9 +144,12 @@ function StatusBadge({ status }) {
   )
 }
 
-function MeetingsTableRow({ meeting, onView, onAddMeeting, onDelete }) {
-  const score = meeting.conviction_score ?? null
-  const description = (meeting.exciting_reason || '').trim()
+function MeetingsTableRow({ meeting, deal, onView, onAddMeeting, onDelete }) {
+  const company = deal?.company || meeting.company || '—'
+  const sector = deal?.sector || deal?.business_model || meeting.sector || '—'
+  const poc = deal?.poc || meeting.poc || '—'
+  const status = deal?.status || meeting.status
+  const score = deal?.founder_final_score ?? meeting.conviction_score ?? null
 
   return (
     <tr 
@@ -155,13 +158,13 @@ function MeetingsTableRow({ meeting, onView, onAddMeeting, onDelete }) {
     >
       <td className="px-4 py-3 align-top">
         <div className="space-y-0.5">
-          <div className="text-sm font-medium text-[#1A1815]">{meeting.company || '—'}</div>
-          <div className="text-xs text-[#9A958E]">{meeting.sector || '—'}</div>
+          <div className="text-sm font-medium text-[#1A1815]">{company}</div>
+          <div className="text-xs text-[#9A958E]">{sector}</div>
         </div>
       </td>
-      <td className="px-4 py-3 align-top text-sm text-[#5A5650]">{meeting.poc || '—'}</td>
+      <td className="px-4 py-3 align-top text-sm text-[#5A5650]">{poc}</td>
       <td className="px-4 py-3 align-top">
-        <StatusBadge status={meeting.status} />
+        <StatusBadge status={status} />
       </td>
       <td className="px-4 py-3 align-top text-sm font-medium text-[#1A1815]">
         {score != null && score !== '' ? Number(score).toFixed(1) : '—'}
@@ -222,9 +225,10 @@ function MeetingsTableView({ rows, dealsById, onViewDeal, onAddMeeting, onDelete
                   date: meeting.date
                 }
               return (
-                <MeetingsTableRow
+                  <MeetingsTableRow
                   key={meeting.id}
                   meeting={meeting}
+                  deal={dealsById.get(meeting.deal_id)}
                   onView={() => onViewDeal(meeting.deal_id)}
                   onAddMeeting={() => onAddMeeting(dealForModal)}
                   onDelete={() => onDeleteMeeting(meeting)}
@@ -294,18 +298,19 @@ function MeetingsPage() {
     const query = search.trim().toLowerCase()
     const meetingMatchesSearch = (m, q) => {
       if (!q) return true
+      const deal = dealsById.get(m.deal_id) || {}
       const hay = [
-        m.company,
-        m.poc,
-        m.sector,
-        m.exciting_reason,
-        m.risks,
-        m.action_required,
-        m.status,
-        m.pass_reasons,
-        m.watch_reasons
+        deal.company || m.company,
+        deal.poc || m.poc,
+        deal.sector || deal.business_model || m.sector,
+        deal.exciting_reason || m.exciting_reason,
+        deal.risks || m.risks,
+        deal.action_required || m.action_required,
+        deal.status || m.status,
+        deal.pass_reasons || m.pass_reasons,
+        deal.watch_reasons || m.watch_reasons
       ]
-      return hay.some((field) => (field || '').toLowerCase().includes(q))
+      return hay.some((field) => String(field || '').toLowerCase().includes(q))
     }
 
     const filtered = meetings.filter((m) => {
@@ -327,14 +332,18 @@ function MeetingsPage() {
 
   const summaryChips = useMemo(() => {
     const total = filteredMeetings.length
-    const scored = filteredMeetings.filter(
-      (m) => m.conviction_score != null && m.conviction_score !== ''
-    )
+    const scored = filteredMeetings.filter((m) => {
+      const s = dealsById.get(m.deal_id)?.founder_final_score ?? m.conviction_score
+      return s != null && s !== ''
+    })
     const avg =
       scored.length === 0
         ? '—'
         : (
-            scored.reduce((acc, m) => acc + Number(m.conviction_score || 0), 0) / scored.length
+            scored.reduce((acc, m) => {
+              const s = dealsById.get(m.deal_id)?.founder_final_score ?? m.conviction_score
+              return acc + Number(s || 0)
+            }, 0) / scored.length
           ).toFixed(1)
     const dates = filteredMeetings
       .map((m) => m.meeting_date || m.date)
