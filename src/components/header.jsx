@@ -14,7 +14,7 @@ function Header() {
   }
 
   return (
-    <header className="z-20 border-b border-[#E8E5DE] bg-[#FAFAF8]/95 backdrop-blur">
+    <header className="z-20 border-b border-[#E8E5DE] bg-[#FAFAF8]/95 backdrop-blur shrink-0">
       <div className="mx-auto flex h-14 w-full items-center justify-between gap-4 px-6">
         <button type="button" onClick={() => navigate('/dashboard')} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
           <img src="/images/logo-black.svg" alt="WH Logo" className="w-20" />

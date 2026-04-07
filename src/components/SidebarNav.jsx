@@ -108,7 +108,7 @@ function RecentDealItem({ id, company, sector, status, score }) {
   )
 }
 
-function SidebarNav() {
+function SidebarNav({ isOpen }) {
   const location = useLocation()
   const pathname = location.pathname
   const onDeals = pathname.startsWith('/deals')
@@ -128,18 +128,12 @@ function SidebarNav() {
     .slice(0, 4)
 
   return (
-    <aside className="flex h-full w-60 shrink-0 flex-col border-r border-[#E8E5DE] bg-white">
-      <div className="px-4 pt-5 pb-3">
-        <div className="flex items-center gap-2 rounded-lg border border-[#E8E5DE] bg-[#F5F4F0] px-3 py-2">
-          <input
-            type="text"
-            placeholder="Search…"
-            className="flex-1 bg-transparent text-[11px] text-[#5A5650] placeholder:text-[#C8C3BB] focus:outline-none"
-          />
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto px-2 pb-4">
+    <aside 
+      className={`flex h-full shrink-0 flex-col border-r border-[#E8E5DE] bg-white transition-all duration-300 ease-in-out ${
+        isOpen ? 'w-60 translate-x-0' : 'w-0 -translate-x-full border-none overflow-hidden opacity-0'
+      }`}
+    >
+      <div className="flex-1 overflow-y-auto px-2 pb-4 pt-5 min-w-[240px]">
         <div className="space-y-1 px-2 pb-4">
           <FolderNavItem to="/dashboard" label="Dashboard" badge={null} icon={LayoutDashboard} active={pathname === '/dashboard'} />
           <FolderNavItem to="/assistant" label="Jarvis AI" badge={null} icon={Bot} active={onAssistant} />
