@@ -15,7 +15,8 @@ function AddMeetingModal({ deal, onClose }) {
   const navigate = useNavigate()
   const {
     addMeetingToCache,
-    updateMeetingInCache
+    updateMeetingInCache,
+    updateDealInCache
   } = useDealData()
 
   const [meeting, setMeeting] = useState(null)
@@ -79,6 +80,7 @@ function AddMeetingModal({ deal, onClose }) {
       if (created) {
         addMeetingToCache(created)
         setMeeting(created)
+        updateDealInCache({ id: deal.id, ...payload })
       }
       return
     }
@@ -95,6 +97,7 @@ function AddMeetingModal({ deal, onClose }) {
     if (updated) {
       updateMeetingInCache(updated)
       setMeeting(updated)
+      updateDealInCache({ id: deal.id, ...payload })
     }
   }
 

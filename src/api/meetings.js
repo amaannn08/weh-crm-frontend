@@ -28,6 +28,7 @@ export async function createDealMeeting(dealId, payload) {
   })
   if (!res.ok) throw new Error('Failed to create deal meeting')
   cache.invalidate('meetings')
+  cache.invalidate('deals')
   cache.invalidate(`deal-meeting:${dealId}`)
   return res.json()
 }
@@ -40,6 +41,7 @@ export async function updateDealMeeting(dealId, patch) {
   })
   if (!res.ok) throw new Error('Failed to update deal meeting')
   cache.invalidate('meetings')
+  cache.invalidate('deals')
   cache.invalidate(`deal-meeting:${dealId}`)
   return res.json()
 }
@@ -49,6 +51,7 @@ export async function deleteDealMeeting(dealId) {
   if (res.status === 404) return
   if (!res.ok) throw new Error('Failed to delete deal meeting')
   cache.invalidate('meetings')
+  cache.invalidate('deals')
   cache.invalidate(`deal-meeting:${dealId}`)
 }
 

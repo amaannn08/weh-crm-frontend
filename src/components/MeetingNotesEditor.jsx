@@ -145,6 +145,9 @@ function MeetingNotesEditor({
       }
       const updated = await updateDealMeeting(dealId, patch)
       updateMeetingInCache(updated)
+      if (updateDealInCache) {
+        updateDealInCache({ id: dealId, ...patch })
+      }
       if (onSaved) await onSaved(updated)
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
