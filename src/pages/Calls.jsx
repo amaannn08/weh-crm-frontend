@@ -117,6 +117,7 @@ function CallsPage() {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [isTyping, setIsTyping] = useState(false)
+  const [activeTools, setActiveTools] = useState([])   // [{ key, label }]
   const [error, setError] = useState('')
   const [sessions, setSessions] = useState([])
   const [activeSessionId, setActiveSessionId] = useState(null)
@@ -189,7 +190,6 @@ function CallsPage() {
 
     let targetSessionId = activeSessionId
 
-    // If there is no active session yet, create one in the backend
     if (!targetSessionId) {
       try {
         const created = await createConversation('')
@@ -203,7 +203,6 @@ function CallsPage() {
         setSessions((prev) => [newSession, ...prev])
         setActiveSessionId(created.id)
       } catch {
-        // fall back to non-persistent session if creation fails
         targetSessionId = targetSessionId || `local-${Date.now()}`
         const localSession = {
           id: targetSessionId,
@@ -229,6 +228,7 @@ function CallsPage() {
     setError('')
     setLoading(true)
     setIsTyping(true)
+    setActiveTools([])
 
     const assistantId = Date.now() + 1
     let assistantAdded = false
@@ -262,12 +262,7 @@ function CallsPage() {
                 ...session,
                 messages: [
                   ...session.messages,
-                  {
-                    id: assistantId,
-                    role: 'assistant',
-                    content: text || '(No response)',
-                    timestamp: new Date()
-                  }
+                  { id: assistantId, role: 'assistant', content: text || '(No response)', timestamp: new Date() }
                 ]
               }
               : session
@@ -276,52 +271,78 @@ function CallsPage() {
         return
       }
 
+      // ── SSE stream reader ────────────────────────────────────────────────────
       const reader = res.body.getReader()
       const decoder = new TextDecoder()
       let content = ''
+      let sseBuffer = ''
 
       while (true) {
         const { done, value } = await reader.read()
         if (done) break
-        content += decoder.decode(value, { stream: true })
 
-        if (!assistantAdded) {
-          assistantAdded = true
-          setSessions((prev) =>
-            prev.map((session) =>
-              session.id === sessionIdForUpdate
-                ? {
-                  ...session,
-                  messages: [
-                    ...session.messages,
-                    {
-                      id: assistantId,
-                      role: 'assistant',
-                      content,
-                      timestamp: new Date()
+        sseBuffer += decoder.decode(value, { stream: true })
+
+        // Split on SSE event boundaries
+        const parts = sseBuffer.split('\n\n')
+        sseBuffer = parts.pop() // keep incomplete trailing chunk
+
+        for (const part of parts) {
+          const line = part.trim()
+          if (!line.startsWith('data: ')) continue
+
+          let evt
+          try { evt = JSON.parse(line.slice(6)) } catch { continue }
+
+          if (evt.type === 'tool_start') {
+            setActiveTools((prev) => [...prev, { key: evt.key, label: evt.label }])
+
+          } else if (evt.type === 'tool_done') {
+            setActiveTools((prev) => prev.filter((t) => t.key !== evt.key))
+
+          } else if (evt.type === 'text') {
+            content += evt.content
+            if (!assistantAdded) {
+              assistantAdded = true
+              setSessions((prev) =>
+                prev.map((session) =>
+                  session.id === sessionIdForUpdate
+                    ? {
+                      ...session,
+                      messages: [
+                        ...session.messages,
+                        { id: assistantId, role: 'assistant', content, timestamp: new Date() }
+                      ]
                     }
-                  ]
-                }
-                : session
-            )
-          )
-        } else {
-          setSessions((prev) =>
-            prev.map((session) =>
-              session.id === sessionIdForUpdate
-                ? {
-                  ...session,
-                  messages: session.messages.map((m) =>
-                    m.id === assistantId ? { ...m, content } : m
-                  )
-                }
-                : session
-            )
-          )
+                    : session
+                )
+              )
+            } else {
+              setSessions((prev) =>
+                prev.map((session) =>
+                  session.id === sessionIdForUpdate
+                    ? {
+                      ...session,
+                      messages: session.messages.map((m) =>
+                        m.id === assistantId ? { ...m, content } : m
+                      )
+                    }
+                    : session
+                )
+              )
+            }
+
+          } else if (evt.type === 'done') {
+            setIsTyping(false)
+            setActiveTools([])
+
+          } else if (evt.type === 'error') {
+            throw new Error(evt.message || 'Assistant error')
+          }
         }
       }
 
-      if (!assistantAdded) {
+      if (!assistantAdded && content) {
         setSessions((prev) =>
           prev.map((session) =>
             session.id === sessionIdForUpdate
@@ -329,18 +350,14 @@ function CallsPage() {
                 ...session,
                 messages: [
                   ...session.messages,
-                  {
-                    id: assistantId,
-                    role: 'assistant',
-                    content: content || '(No response)',
-                    timestamp: new Date()
-                  }
+                  { id: assistantId, role: 'assistant', content, timestamp: new Date() }
                 ]
               }
               : session
           )
         )
       }
+
     } catch (err) {
       if (err.name !== 'AbortError') {
         setError(err.message || 'Something went wrong. Please try again.')
@@ -366,6 +383,7 @@ function CallsPage() {
     } finally {
       setLoading(false)
       setIsTyping(false)
+      setActiveTools([])
       abortControllerRef.current = null
     }
   }
@@ -512,12 +530,33 @@ function CallsPage() {
                   </div>
                 ))}
 
-                {isTyping && (
+                {(isTyping || activeTools.length > 0) && (
                   <div className="flex justify-start">
-                    <div className="inline-flex items-center gap-1.5 rounded-2xl rounded-bl-sm border border-[#E8E5DE] bg-[#FAFAF8] px-4 py-3 text-[11px] text-[#5A5650] shadow-[0_4px_10px_rgba(26,24,21,0.08)]">
-                      <span className="inline-block h-1.5 w-1.5 animate-bounce rounded-full bg-[#B0A89C]" />
-                      <span className="inline-block h-1.5 w-1.5 animate-bounce rounded-full bg-[#B0A89C] [animation-delay:120ms]" />
-                      <span className="inline-block h-1.5 w-1.5 animate-bounce rounded-full bg-[#B0A89C] [animation-delay:240ms]" />
+                    <div className="inline-flex flex-col gap-2 rounded-2xl rounded-bl-sm border border-[#E8E5DE] bg-[#FAFAF8] px-4 py-3 shadow-[0_4px_10px_rgba(26,24,21,0.08)]">
+                      {activeTools.length > 0 ? (
+                        activeTools.map((tool) => (
+                          <div key={tool.key} className="flex items-center gap-2 text-[11px] text-[#5A5650]">
+                            {/* Spinning loader in brand orange */}
+                            <svg
+                              className="h-3 w-3 animate-spin shrink-0 text-[#FF7102]"
+                              xmlns="http://www.w3.org/2000/svg"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                            >
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                            </svg>
+                            <span className="font-mono tracking-tight">{tool.label}</span>
+                          </div>
+                        ))
+                      ) : (
+                        /* Default dots while planner is running (before first tool fires) */
+                        <div className="inline-flex items-center gap-1.5">
+                          <span className="inline-block h-1.5 w-1.5 animate-bounce rounded-full bg-[#B0A89C]" />
+                          <span className="inline-block h-1.5 w-1.5 animate-bounce rounded-full bg-[#B0A89C] [animation-delay:120ms]" />
+                          <span className="inline-block h-1.5 w-1.5 animate-bounce rounded-full bg-[#B0A89C] [animation-delay:240ms]" />
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
