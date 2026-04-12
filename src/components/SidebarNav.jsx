@@ -60,7 +60,7 @@ function FolderNavItem({ to, label, badge, icon: Icon, active }) {
   )
 }
 
-function RecentDealItem({ id, company, sector, status, score }) {
+function RecentDealItem({ id, company, sector, status, score, openMeeting = false }) {
   const navigate = useNavigate()
   // Pick a dot color based on status
   const dotColor =
@@ -78,7 +78,7 @@ function RecentDealItem({ id, company, sector, status, score }) {
   return (
     <button
       type="button"
-      onClick={() => navigate(`/deals/${id}`)}
+      onClick={() => navigate(openMeeting ? `/meetings/${id}` : `/deals/${id}`)}
       className="w-full rounded-lg px-2 py-2 text-left hover:bg-[#F5F4F0]"
     >
       <div className="flex items-start gap-2">
@@ -155,6 +155,7 @@ function SidebarNav({ isOpen }) {
                 sector={m.sector}
                 status={m.status}
                 score={null}
+                openMeeting
               />
             ))}
           </SidebarSection>
