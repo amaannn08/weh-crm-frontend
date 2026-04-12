@@ -113,6 +113,8 @@ export async function ingestTranscript(file) {
     const err = await res.json().catch(() => ({}))
     throw new Error(err.error || 'Failed to ingest transcript')
   }
+  cache.invalidate('deals')
+  cache.invalidate('meetings')
   return res.json()
 }
 
@@ -129,6 +131,8 @@ export async function ingestTranscriptForDeal(dealId, file) {
     const err = await res.json().catch(() => ({}))
     throw new Error(err.error || 'Failed to ingest transcript for deal')
   }
+  cache.invalidate('deals')
+  cache.invalidate('meetings')
   return res.json()
 }
 

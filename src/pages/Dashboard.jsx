@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useDealData } from '../context/DealDataContext'
 import { CalendarDays, BarChart3, Calendar, Trophy, Search, XCircle, Star } from 'lucide-react'
@@ -73,7 +73,13 @@ function ActivityRow({ company, status, score, sector, meetingDate }) {
 
 function Dashboard() {
     const navigate = useNavigate()
-    const { deals, meetings } = useDealData()
+    const { deals, meetings, loadDeals, loadMeetings } = useDealData()
+
+    // Bust 5‑min API cache so pipeline / ingest updates (not visible to this tab) still show here
+    useEffect(() => {
+        loadDeals(true)
+        loadMeetings(true)
+    }, [loadDeals, loadMeetings])
 
     const stats = useMemo(() => {
         const total = deals.length
@@ -85,7 +91,16 @@ function Dashboard() {
         const avgScore = scored.length
             ? (scored.reduce((a, d) => a + Number(d.founder_final_score), 0) / scored.length).toFixed(1)
             : '—'
-        return { total, portfolio, active, pass, watch, avgScore, totalMeetings: meetings.length }
+        return {
+            total,
+            portfolio,
+            active,
+            pass,
+            watch,
+            avgScore,
+            scoredCount: scored.length,
+            totalMeetings: meetings.length
+        }
     }, [deals, meetings])
 
     // Under-evaluation statuses (exclude Portfolio and Pass)
@@ -173,7 +188,7 @@ function Dashboard() {
                 <StatCard
                     label="Avg score"
                     value={stats.avgScore}
-                    sub={`${deals.filter(d => d.founder_final_score != null).length} scored`}
+                    sub={`${stats.scoredCount} Deals`}
                     icon={Star}
                     color="bg-[#FAFAF8] border-[#E8E5DE] text-[#1A1815]"
                     onClick={() => navigate('/deals')}
