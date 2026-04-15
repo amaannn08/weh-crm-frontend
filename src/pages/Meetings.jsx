@@ -148,7 +148,7 @@ function MeetingsTableRow({ meeting, deal, onView, onAddMeeting, onDelete }) {
   const company = deal?.company || meeting.company || '—'
   const sector = deal?.sector || deal?.business_model || meeting.sector || '—'
   const poc = deal?.poc || meeting.poc || '—'
-  const status = deal?.status || meeting.status
+  const status = meeting.status || deal?.status
   const score = deal?.founder_final_score ?? meeting.conviction_score ?? null
 
   return (
@@ -306,7 +306,7 @@ function MeetingsPage() {
         deal.exciting_reason || m.exciting_reason,
         deal.risks || m.risks,
         deal.action_required || m.action_required,
-        deal.status || m.status,
+        m.status || deal.status,
         deal.pass_reasons || m.pass_reasons,
         deal.watch_reasons || m.watch_reasons
       ]

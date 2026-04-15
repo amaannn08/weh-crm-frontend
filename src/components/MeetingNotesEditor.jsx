@@ -84,7 +84,12 @@ function MeetingNotesEditor({
   onSaved,
   onDeleted
 }) {
-  const { meetings, updateMeetingInCache, removeMeetingFromCache } = useDealData()
+  const {
+    meetings,
+    updateMeetingInCache,
+    removeMeetingFromCache,
+    updateDealInCache
+  } = useDealData()
 
   const meetingFromContext = useMemo(() => {
     if (!dealId) return null

@@ -45,6 +45,52 @@ export async function deleteDeal(id) {
   cache.invalidate('deals')
 }
 
+export async function mergeDeals(dealIds) {
+  const res = await authFetch(`${routes.deals}/merge`, {
+    method: 'POST',
+    headers: apiHeaders(),
+    body: JSON.stringify({ dealIds })
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || 'Failed to merge deals')
+  }
+  cache.invalidate('deals')
+  cache.invalidate('meetings')
+  return res.json()
+}
+
+export async function fetchPendingDealAmbiguitiesCount() {
+  const res = await authFetch(`${routes.deals}/ambiguities/count`, {
+    headers: apiHeaders()
+  })
+  if (!res.ok) throw new Error('Failed to fetch ambiguity count')
+  return res.json()
+}
+
+export async function fetchPendingDealAmbiguities() {
+  const res = await authFetch(`${routes.deals}/ambiguities?status=pending`, {
+    headers: apiHeaders()
+  })
+  if (!res.ok) throw new Error('Failed to fetch pending ambiguities')
+  return res.json()
+}
+
+export async function resolveDealAmbiguity(id, payload) {
+  const res = await authFetch(`${routes.deals}/ambiguities/${id}/resolve`, {
+    method: 'POST',
+    headers: apiHeaders(),
+    body: JSON.stringify(payload)
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || 'Failed to resolve ambiguity')
+  }
+  cache.invalidate('deals')
+  cache.invalidate('meetings')
+  return res.json()
+}
+
 export async function fetchDealScore(id) {
   const res = await authFetch(dealScoreUrl(id), { headers: apiHeaders() })
   if (!res.ok) {

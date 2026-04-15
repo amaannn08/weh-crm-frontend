@@ -2,8 +2,19 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useDealData } from '../context/DealDataContext'
 import PageShell from '../components/PageShell'
-import { createDeal, deleteDeal, ingestTranscript, updateDeal } from '../api/deals'
+import {
+  createDeal,
+  deleteDeal,
+  fetchPendingDealAmbiguities,
+  fetchPendingDealAmbiguitiesCount,
+  ingestTranscript,
+  mergeDeals,
+  resolveDealAmbiguity,
+  updateDeal
+} from '../api/deals'
 import AddMeetingModal from '../components/AddMeetingModal'
+import MergeDealsModal from '../components/MergeDealsModal'
+import DealAmbiguityModal from '../components/DealAmbiguityModal'
 import { Plus, Upload, Loader2, CalendarPlus, Edit2, Trash2, ArrowDownWideNarrow, ArrowUpNarrowWide, CalendarDays } from 'lucide-react'
 
 // ---------------------------------------------------------------------------
@@ -27,7 +38,20 @@ const DEAL_FIELDS = [
   { key: 'company', label: 'Company name', required: true },
   { key: 'poc', label: 'Point of contact (WEH)' },
   { key: 'sector', label: 'Sector' },
-  { key: 'status', label: 'Status', type: 'select', options: ['New', 'Active Diligence', 'Watch', 'Pass', 'Portfolio'] },
+  {
+    key: 'status',
+    label: 'Status',
+    type: 'select',
+    options: [
+      'Active Diligence',
+      'Ghosted',
+      'IC',
+      'Milestone watch',
+      'Founder watch',
+      'Pass',
+      'Track'
+    ]
+  },
   { key: 'founder_name', label: 'Founder name' },
   { key: 'company_domain', label: 'Company domain' },
   { key: 'meeting_date', label: 'Meeting date', type: 'date' },
@@ -40,7 +64,7 @@ const DEAL_FIELDS = [
 function DealModal({ deal, onClose, onSave }) {
   const isEdit = !!deal
   const [form, setForm] = useState(
-    isEdit ? { ...deal } : { status: 'New' }
+    isEdit ? { ...deal } : { status: 'Active Diligence' }
   )
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
@@ -164,16 +188,25 @@ function DeleteConfirmModal({ company, onCancel, onConfirm, deleting }) {
 // ---------------------------------------------------------------------------
 // Table row
 // ---------------------------------------------------------------------------
-function DealsTableRow({ deal, onView, onAddMeeting, onEdit, onDelete }) {
+function DealsTableRow({ deal, selected, onToggleSelect, onView, onAddMeeting, onEdit, onDelete }) {
   const lastMeeting = deal.meeting_date || deal.date || null
   const score = deal.founder_final_score ?? null
   const description = (deal.business_model || deal.sector || '').trim()
 
   return (
-    <tr 
+    <tr
       onClick={onView}
       className="border-b border-[#E8E5DE] hover:bg-[#FAFAF8] transition-colors cursor-pointer"
     >
+      <td className="px-4 py-3 align-top" onClick={(e) => e.stopPropagation()}>
+        <input
+          type="checkbox"
+          checked={selected}
+          onChange={(e) => onToggleSelect(e.target.checked)}
+          aria-label={`Select ${deal.company} for merge`}
+          className="h-4 w-4 rounded border-[#CFCBC2] text-[#FF7102] focus:ring-[#FF7102]"
+        />
+      </td>
       <td className="px-4 py-3 align-top">
         <div className="space-y-0.5">
           <div className="text-sm font-medium text-[#1A1815]">{deal.company}</div>
@@ -214,12 +247,31 @@ function DealsTableRow({ deal, onView, onAddMeeting, onEdit, onDelete }) {
   )
 }
 
-function DealsTableView({ filteredDeals, onViewDeal, onAddMeetingForDeal, onEditDeal, onDeleteDeal }) {
+function DealsTableView({
+  filteredDeals,
+  selectedDealIds,
+  onToggleAll,
+  onToggleDeal,
+  onViewDeal,
+  onAddMeetingForDeal,
+  onEditDeal,
+  onDeleteDeal
+}) {
+  const allSelected = filteredDeals.length > 0 && filteredDeals.every((deal) => selectedDealIds.has(String(deal.id)))
   return (
     <div className="min-h-0 flex-1 overflow-auto bg-white">
       <table className="min-w-full border-collapse text-sm">
         <thead className="sticky top-0 border-b border-[#E8E5DE] bg-[#FAFAF8]/95 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#9A958E] backdrop-blur">
           <tr>
+            <th className="px-4 py-3 text-left font-semibold">
+              <input
+                type="checkbox"
+                checked={allSelected}
+                onChange={(e) => onToggleAll(e.target.checked)}
+                aria-label="Select all filtered deals for merge"
+                className="h-4 w-4 rounded border-[#CFCBC2] text-[#FF7102] focus:ring-[#FF7102]"
+              />
+            </th>
             <th className="px-4 py-3 text-left font-semibold">Name</th>
             <th className="px-4 py-3 text-left font-semibold">POC</th>
             <th className="px-4 py-3 text-left font-semibold">Last meeting</th>
@@ -230,7 +282,7 @@ function DealsTableView({ filteredDeals, onViewDeal, onAddMeetingForDeal, onEdit
         <tbody>
           {filteredDeals.length === 0 ? (
             <tr>
-              <td colSpan={5} className="px-4 py-8 text-center text-xs text-neutral-500">
+              <td colSpan={6} className="px-4 py-8 text-center text-xs text-neutral-500">
                 No deals match your filters yet.
               </td>
             </tr>
@@ -239,6 +291,8 @@ function DealsTableView({ filteredDeals, onViewDeal, onAddMeetingForDeal, onEdit
               <DealsTableRow
                 key={deal.id}
                 deal={deal}
+                selected={selectedDealIds.has(String(deal.id))}
+                onToggleSelect={(checked) => onToggleDeal(deal.id, checked)}
                 onView={() => onViewDeal(deal)}
                 onAddMeeting={() => onAddMeetingForDeal(deal)}
                 onEdit={() => onEditDeal(deal)}
@@ -277,6 +331,17 @@ function DealsPage() {
   const [deletingDeal, setDeletingDeal] = useState(null)    // deal obj or null
   const [isDeleting, setIsDeleting] = useState(false)
   const [addMeetingModalDeal, setAddMeetingModalDeal] = useState(null)
+  const [selectedDealIds, setSelectedDealIds] = useState(() => new Set())
+  const [mergeModalOpen, setMergeModalOpen] = useState(false)
+  const [mergeError, setMergeError] = useState(null)
+  const [mergeStatus, setMergeStatus] = useState(null)
+  const [isMerging, setIsMerging] = useState(false)
+  const [ambiguityCount, setAmbiguityCount] = useState(0)
+  const [ambiguityModalOpen, setAmbiguityModalOpen] = useState(false)
+  const [ambiguityLoading, setAmbiguityLoading] = useState(false)
+  const [ambiguityError, setAmbiguityError] = useState(null)
+  const [ambiguityItems, setAmbiguityItems] = useState([])
+  const [processingAmbiguityId, setProcessingAmbiguityId] = useState(null)
 
   const [search, setSearch] = useState('')
   const [minScore, setMinScore] = useState('0')
@@ -296,6 +361,28 @@ function DealsPage() {
   useEffect(() => {
     Promise.all([loadDeals(), loadMeetings()]).catch(() => setError('Failed to load deals'))
   }, [loadDeals, loadMeetings])
+
+  const refreshAmbiguityCount = async () => {
+    const data = await fetchPendingDealAmbiguitiesCount()
+    setAmbiguityCount(Number(data?.count || 0))
+  }
+
+  const loadAmbiguities = async () => {
+    setAmbiguityLoading(true)
+    setAmbiguityError(null)
+    try {
+      const data = await fetchPendingDealAmbiguities()
+      setAmbiguityItems(Array.isArray(data?.items) ? data.items : [])
+    } catch (err) {
+      setAmbiguityError(err.message || 'Failed to load ambiguities')
+    } finally {
+      setAmbiguityLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    refreshAmbiguityCount().catch(() => {})
+  }, [])
 
   const meetingByDealId = useMemo(() => {
     const m = new Map()
@@ -374,6 +461,20 @@ function DealsPage() {
     return filtered
   }, [deals, meetingByDealId, industryFilter, minScore, search, sortField, sortOrder])
 
+  const selectedDeals = useMemo(
+    () => deals.filter((deal) => selectedDealIds.has(String(deal.id))),
+    [deals, selectedDealIds]
+  )
+
+  const mergePreview = useMemo(() => {
+    if (selectedDeals.length < 2) return null
+    const sorted = [...selectedDeals].sort((a, b) => {
+      const getDate = (deal) => new Date(deal?.updated_at || deal?.created_at || 0).getTime()
+      return getDate(b) - getDate(a)
+    })
+    return { primary: sorted[0], secondaryDeals: sorted.slice(1) }
+  }, [selectedDeals])
+
   const summaryCards = useMemo(() => {
     const total = filteredDeals.length
     const scored = filteredDeals.filter(d => d.founder_final_score != null && d.founder_final_score !== '')
@@ -393,6 +494,28 @@ function DealsPage() {
 
   const handleAddMeeting = (deal) => {
     setAddMeetingModalDeal(deal)
+  }
+
+  const handleToggleDeal = (dealId, checked) => {
+    const key = String(dealId)
+    setSelectedDealIds((prev) => {
+      const next = new Set(prev)
+      if (checked) next.add(key)
+      else next.delete(key)
+      return next
+    })
+  }
+
+  const handleToggleAllFiltered = (checked) => {
+    setSelectedDealIds((prev) => {
+      const next = new Set(prev)
+      for (const deal of filteredDeals) {
+        const key = String(deal.id)
+        if (checked) next.add(key)
+        else next.delete(key)
+      }
+      return next
+    })
   }
 
   const handleAddDeal = async (form) => {
@@ -423,6 +546,60 @@ function DealsPage() {
   }
 
   const handleUploadClick = () => fileInputRef.current?.click()
+
+  const handleOpenMergeModal = () => {
+    setMergeError(null)
+    setMergeModalOpen(true)
+  }
+
+  const handleOpenAmbiguityModal = async () => {
+    setAmbiguityModalOpen(true)
+    await loadAmbiguities()
+  }
+
+  const handleResolveAmbiguityMerge = async (ambiguityId, dealId) => {
+    setProcessingAmbiguityId(ambiguityId)
+    try {
+      await resolveDealAmbiguity(ambiguityId, { action: 'merge_into_existing', dealId })
+      await Promise.all([loadDeals(true), loadMeetings(true), refreshAmbiguityCount(), loadAmbiguities()])
+    } catch (err) {
+      setAmbiguityError(err.message || 'Failed to resolve ambiguity')
+    } finally {
+      setProcessingAmbiguityId(null)
+    }
+  }
+
+  const handleIgnoreAmbiguity = async (ambiguityId) => {
+    setProcessingAmbiguityId(ambiguityId)
+    try {
+      await resolveDealAmbiguity(ambiguityId, { action: 'ignore' })
+      await Promise.all([refreshAmbiguityCount(), loadAmbiguities()])
+    } catch (err) {
+      setAmbiguityError(err.message || 'Failed to ignore ambiguity')
+    } finally {
+      setProcessingAmbiguityId(null)
+    }
+  }
+
+  const handleConfirmMerge = async () => {
+    if (selectedDeals.length < 2) return
+    setIsMerging(true)
+    setMergeError(null)
+    try {
+      const summary = await mergeDeals(selectedDeals.map((deal) => deal.id))
+      await Promise.all([loadDeals(true), loadMeetings(true)])
+      setSelectedDealIds(new Set())
+      setMergeModalOpen(false)
+      setMergeStatus({
+        ok: true,
+        message: `Merged ${summary.mergedDealIds?.length || 0} deal(s) into "${summary.primaryCompany}".`
+      })
+    } catch (err) {
+      setMergeError(err.message || 'Failed to merge deals')
+    } finally {
+      setIsMerging(false)
+    }
+  }
 
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0]
@@ -489,6 +666,23 @@ function DealsPage() {
               Add deal
             </button>
 
+            <button
+              type="button"
+              onClick={handleOpenMergeModal}
+              disabled={selectedDeals.length < 2 || isMerging}
+              className="inline-flex items-center gap-1.5 rounded-full border border-[#E8E5DE] bg-white px-3 py-1.5 text-xs font-medium text-[#1A1815] shadow-sm hover:bg-[#F5F4F0] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Merge deals ({selectedDeals.length} selected)
+            </button>
+
+            <button
+              type="button"
+              onClick={handleOpenAmbiguityModal}
+              className="inline-flex items-center gap-1.5 rounded-full border border-[#E8E5DE] bg-white px-3 py-1.5 text-xs font-medium text-[#1A1815] shadow-sm hover:bg-[#F5F4F0]"
+            >
+              Ambiguities ({ambiguityCount})
+            </button>
+
             {/* Upload transcript */}
             <button type="button" onClick={handleUploadClick} disabled={ingesting}
               className="inline-flex items-center gap-1.5 rounded-full border border-[#E8E5DE] bg-white px-3 py-1.5 text-xs font-medium text-[#1A1815] shadow-sm hover:bg-[#F5F4F0] disabled:opacity-60">
@@ -508,6 +702,11 @@ function DealsPage() {
             {uploadStatus && (
               <span className={`text-xs font-medium ${uploadStatus.ok ? 'text-emerald-700' : 'text-red-600'}`}>
                 {uploadStatus.message}
+              </span>
+            )}
+            {mergeStatus && (
+              <span className={`text-xs font-medium ${mergeStatus.ok ? 'text-emerald-700' : 'text-red-600'}`}>
+                {mergeStatus.message}
               </span>
             )}
           </div>
@@ -572,6 +771,9 @@ function DealsPage() {
 
           <DealsTableView
             filteredDeals={filteredDeals}
+            selectedDealIds={selectedDealIds}
+            onToggleAll={handleToggleAllFiltered}
+            onToggleDeal={handleToggleDeal}
             onViewDeal={handleViewDeal}
             onAddMeetingForDeal={handleAddMeeting}
             onEditDeal={d => setEditDeal(d)}
@@ -607,6 +809,31 @@ function DealsPage() {
           onClose={() => setAddMeetingModalDeal(null)}
         />
       )}
+
+      {mergeModalOpen && mergePreview && (
+        <MergeDealsModal
+          primaryDeal={mergePreview.primary}
+          secondaryDeals={mergePreview.secondaryDeals}
+          error={mergeError}
+          submitting={isMerging}
+          onCancel={() => {
+            setMergeModalOpen(false)
+            setMergeError(null)
+          }}
+          onConfirm={handleConfirmMerge}
+        />
+      )}
+
+      <DealAmbiguityModal
+        open={ambiguityModalOpen}
+        items={ambiguityItems}
+        loading={ambiguityLoading}
+        error={ambiguityError}
+        processingId={processingAmbiguityId}
+        onClose={() => setAmbiguityModalOpen(false)}
+        onResolveMerge={handleResolveAmbiguityMerge}
+        onIgnore={handleIgnoreAmbiguity}
+      />
     </>
   )
 }
