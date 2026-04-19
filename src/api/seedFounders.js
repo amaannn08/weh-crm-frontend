@@ -119,6 +119,16 @@ export async function listLps({ search, limit = 200, offset = 0 } = {}) {
   return res.json()
 }
 
+export async function listRecentSearches({ limit = 50, offset = 0 } = {}) {
+  const params = new URLSearchParams()
+  params.set('limit', limit)
+  params.set('offset', offset)
+
+  const res = await authFetch(`${routes.seedFounders}/recent-searches?${params}`, { headers: apiHeaders() })
+  if (!res.ok) throw new Error('Failed to load recent searches')
+  return res.json()
+}
+
 export async function saveBatch(founders) {
   const res = await authFetch(routes.seedFounders + '/save-batch', {
     method: 'POST',
@@ -171,5 +181,14 @@ export async function deleteFounder(id) {
   })
   if (!res.ok) throw new Error('Failed to delete founder')
   cache.invalidate(CACHE_KEY)
+  return res.json()
+}
+
+export async function deleteLp(id) {
+  const res = await authFetch(`${routes.seedFounders}/lps/${id}`, {
+    method: 'DELETE',
+    headers: apiHeaders()
+  })
+  if (!res.ok) throw new Error('Failed to delete LP')
   return res.json()
 }

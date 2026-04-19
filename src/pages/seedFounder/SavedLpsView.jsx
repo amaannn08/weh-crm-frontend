@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { ArrowDownWideNarrow, ArrowUpNarrowWide, Loader2, Search } from 'lucide-react'
 import PageShell from '../../components/PageShell'
 import { FounderTable } from './shared.jsx'
-import { listLps } from '../../api/seedFounders'
+import { deleteLp, listLps } from '../../api/seedFounders'
 
 export default function SavedLpsView({ onNewSearch }) {
   const [rows, setRows] = useState([])
@@ -21,6 +21,11 @@ export default function SavedLpsView({ onNewSearch }) {
   }, [])
 
   useEffect(() => { load() }, [load])
+
+  const handleDelete = useCallback(async (id) => {
+    setRows((prev) => prev.filter((r) => r.id !== id))
+    try { await deleteLp(id) } catch (e) { console.error(e) }
+  }, [])
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -69,7 +74,7 @@ export default function SavedLpsView({ onNewSearch }) {
         <div className="min-h-0 flex-1 overflow-auto bg-white">
           {loading
             ? <div className="flex items-center justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-[#FF7102]" /></div>
-            : <FounderTable rows={filtered} showStatus={false} showDelete={false} />
+            : <FounderTable rows={filtered} showStatus={false} showDelete={true} onDelete={handleDelete} />
           }
         </div>
       </div>

@@ -6,8 +6,33 @@ import { cancelSeedSearch, searchFoundersStream } from '../../api/seedFounders'
 import PageShell from '../../components/PageShell'
 
 const RESULT_COUNTS = [10, 25, 50, 100]
+const RECENT_SEARCHES_KEY = 'seedFounder:recentSearches'
+const RECENT_SEARCHES_MAX = 100
 
-export default function SearchForm({ onSearchComplete, onViewSaved, onViewSavedLps }) {
+function loadRecentSearches() {
+  try {
+    const raw = localStorage.getItem(RECENT_SEARCHES_KEY)
+    const parsed = raw ? JSON.parse(raw) : []
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+function saveRecentSearches(list) {
+  localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(list.slice(0, RECENT_SEARCHES_MAX)))
+}
+
+function upsertRecentSearch(entry) {
+  const existing = loadRecentSearches()
+  const idx = existing.findIndex((r) => r.localId === entry.localId)
+  if (idx >= 0) existing[idx] = { ...existing[idx], ...entry }
+  else existing.unshift(entry)
+  existing.sort((a, b) => (new Date(b.createdAt || 0)).getTime() - (new Date(a.createdAt || 0)).getTime())
+  saveRecentSearches(existing)
+}
+
+export default function SearchForm({ onSearchComplete, onViewSaved, onViewSavedLps, onViewRecentSearches }) {
   const [query, setQuery]               = useState('')
   const [sectors, setSectors]           = useState([])
   const [backgrounds, setBackgrounds]   = useState([])
@@ -30,6 +55,7 @@ export default function SearchForm({ onSearchComplete, onViewSaved, onViewSavedL
   const keepStreamAliveOnUnmountRef = useRef(false)
   const hasAutoOpenedResultsRef = useRef(false)
   const liveRowsRef = useRef([])
+  const currentSearchRef = useRef(null)
   const [filters, setFilters] = useState({
     aiScoring: false, excludeExisting: false, emailEnrichment: false, firstConnections: false,
   })
@@ -74,6 +100,16 @@ export default function SearchForm({ onSearchComplete, onViewSaved, onViewSavedL
     hasAutoOpenedResultsRef.current = false
     liveRowsRef.current = []
     setSearching(true); setError(null); setSearchStatus('Preparing search...'); setPartialCount(0); setActiveWebsetId(null); setCanceling(false)
+    currentSearchRef.current = {
+      localId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      queryText: (query || '').trim() || 'Founder or Co-Founder of a startup',
+      status: 'running',
+      resultsCount: 0,
+      createdAt: new Date().toISOString(),
+      completedAt: null,
+      websetId: null
+    }
+    upsertRecentSearch(currentSearchRef.current)
     searchAbortRef.current?.abort()
     const controller = new AbortController()
     searchAbortRef.current = controller
@@ -93,6 +129,10 @@ export default function SearchForm({ onSearchComplete, onViewSaved, onViewSavedL
           if (event === 'contract') return
           if (event === 'ready') {
             if (payload?.websetId) setActiveWebsetId(payload.websetId)
+            if (payload?.websetId && currentSearchRef.current) {
+              currentSearchRef.current = { ...currentSearchRef.current, websetId: payload.websetId }
+              upsertRecentSearch(currentSearchRef.current)
+            }
             if (isMountedRef.current) setSearchStatus(payload?.message || 'Search started...')
             return
           }
@@ -103,6 +143,10 @@ export default function SearchForm({ onSearchComplete, onViewSaved, onViewSavedL
             if (isMountedRef.current) {
               setPartialCount(total)
               setSearchStatus(`Found ${total} founders so far...`)
+            }
+            if (currentSearchRef.current) {
+              currentSearchRef.current = { ...currentSearchRef.current, resultsCount: total }
+              upsertRecentSearch(currentSearchRef.current)
             }
             if (!hasAutoOpenedResultsRef.current && liveRowsRef.current.length > 0) {
               hasAutoOpenedResultsRef.current = true
@@ -129,18 +173,36 @@ export default function SearchForm({ onSearchComplete, onViewSaved, onViewSavedL
       })
       if (result.success) onSearchComplete(result.results || [])
       else if (isMountedRef.current) setError(result.message || 'No founders found.')
+      if (currentSearchRef.current) {
+        currentSearchRef.current = {
+          ...currentSearchRef.current,
+          status: result?.cancelled ? 'cancelled' : 'completed',
+          resultsCount: Array.isArray(result?.results) ? result.results.length : (currentSearchRef.current.resultsCount || 0),
+          completedAt: new Date().toISOString()
+        }
+        upsertRecentSearch(currentSearchRef.current)
+      }
     } catch (err) {
       keepStreamAliveOnUnmountRef.current = false
       if (err.name === 'AbortError') {
         if (isMountedRef.current) setError('Search cancelled')
+        if (currentSearchRef.current) {
+          currentSearchRef.current = { ...currentSearchRef.current, status: 'cancelled', completedAt: new Date().toISOString() }
+          upsertRecentSearch(currentSearchRef.current)
+        }
       } else {
         if (isMountedRef.current) setError(err.message || 'Search failed')
+        if (currentSearchRef.current) {
+          currentSearchRef.current = { ...currentSearchRef.current, status: 'failed', errorMessage: err.message || 'Search failed', completedAt: new Date().toISOString() }
+          upsertRecentSearch(currentSearchRef.current)
+        }
       }
     } finally {
       if (isMountedRef.current) setSearching(false)
       searchAbortRef.current = null
       setCanceling(false)
       setActiveWebsetId(null)
+      currentSearchRef.current = null
     }
   }
 
@@ -171,6 +233,10 @@ export default function SearchForm({ onSearchComplete, onViewSaved, onViewSavedL
           <button type="button" onClick={onViewSavedLps}
             className="inline-flex items-center gap-1.5 rounded-full border border-[#E8E5DE] bg-white px-3 py-1.5 text-xs font-medium text-[#5A5650] hover:bg-[#F5F4F0] transition-colors shadow-sm">
             <RefreshCw className="h-3 w-3" /> View saved LPs
+          </button>
+          <button type="button" onClick={onViewRecentSearches}
+            className="inline-flex items-center gap-1.5 rounded-full border border-[#E8E5DE] bg-white px-3 py-1.5 text-xs font-medium text-[#5A5650] hover:bg-[#F5F4F0] transition-colors shadow-sm">
+            <RefreshCw className="h-3 w-3" /> View recent searched
           </button>
         </div>
       }

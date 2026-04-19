@@ -4,7 +4,7 @@ import PageShell from '../../components/PageShell'
 import { FounderTable } from './shared.jsx'
 import { saveBatch, saveLpBatch } from '../../api/seedFounders'
 
-export default function SearchResultsView({ rows, onNewSearch, onSaved, onSavedLps }) {
+export default function SearchResultsView({ rows, onNewSearch, onSaved, onSavedLps, onRecentSearches }) {
   const [search, setSearch]       = useState('')
   const [sortDir, setSortDir]     = useState('desc')
   const [savingType, setSavingType] = useState(null)
@@ -108,6 +108,10 @@ export default function SearchResultsView({ rows, onNewSearch, onSaved, onSavedL
           <button type="button" onClick={onSavedLps}
             className="inline-flex items-center gap-1.5 rounded-full border border-[#E8E5DE] bg-white px-3 py-1.5 text-xs font-medium text-[#5A5650] hover:bg-[#F5F4F0] transition-colors">
             View saved LPs
+          </button>
+          <button type="button" onClick={onRecentSearches}
+            className="inline-flex items-center gap-1.5 rounded-full border border-[#E8E5DE] bg-white px-3 py-1.5 text-xs font-medium text-[#5A5650] hover:bg-[#F5F4F0] transition-colors">
+            View recent searched
           </button>
           <button type="button" onClick={onNewSearch}
             className="inline-flex items-center gap-1.5 rounded-full bg-[#1A1815] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#333] transition-colors">
