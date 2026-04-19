@@ -9,20 +9,20 @@ const RESULT_COUNTS = [10, 25, 50, 100]
 
 export default function SearchForm({ onSearchComplete, onViewSaved }) {
   const [query, setQuery]               = useState('')
-  const [sectors, setSectors]           = useState(['Fintech'])
+  const [sectors, setSectors]           = useState([])
   const [backgrounds, setBackgrounds]   = useState([])
   const [location, setLocation]         = useState('All India')
-  const [stage, setStage]               = useState('Pre-seed or Seed')
-  const [foundedYears, setFoundedYears] = useState(['2024', '2025'])
+  const [stage, setStage]               = useState('Any stage')
+  const [foundedYears, setFoundedYears] = useState([])
   const [exportCount, setExportCount]   = useState(25)
   const [resultCount, setResultCount]   = useState(25)
   const [showCountDropdown, setShowCountDropdown] = useState(false)
-  const [showFilters, setShowFilters]   = useState(false)
+  const [showFilters, setShowFilters]   = useState(true)
   const [searching, setSearching]       = useState(false)
   const [error, setError]               = useState(null)
   const [selectedPresets, setSelectedPresets] = useState(new Set())
   const [filters, setFilters] = useState({
-    aiScoring: true, excludeExisting: true, emailEnrichment: false, firstConnections: false,
+    aiScoring: false, excludeExisting: false, emailEnrichment: false, firstConnections: false,
   })
 
   const toggleYear = (y) => setFoundedYears(p => p.includes(y) ? p.filter(x => x !== y) : [...p, y])
@@ -191,10 +191,6 @@ export default function SearchForm({ onSearchComplete, onViewSaved }) {
                         {y}
                       </button>
                     ))}
-                    <button type="button" onClick={() => setFoundedYears([])}
-                      className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${foundedYears.length === 0 ? 'border-[#FFD0AB] bg-[#FFEFE2] text-[#FF7102]' : 'border-[#E8E5DE] bg-white text-[#5A5650] hover:bg-[#F5F4F0]'}`}>
-                      Any
-                    </button>
                   </div>
                 </div>
 
