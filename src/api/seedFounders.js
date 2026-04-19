@@ -108,6 +108,17 @@ export async function listFounders({ search, stage, status, limit = 200, offset 
   }, 60_000)
 }
 
+export async function listLps({ search, limit = 200, offset = 0 } = {}) {
+  const params = new URLSearchParams()
+  if (search) params.set('search', search)
+  params.set('limit', limit)
+  params.set('offset', offset)
+
+  const res = await authFetch(`${routes.seedFounders}/lps?${params}`, { headers: apiHeaders() })
+  if (!res.ok) throw new Error('Failed to load LPs')
+  return res.json()
+}
+
 export async function saveBatch(founders) {
   const res = await authFetch(routes.seedFounders + '/save-batch', {
     method: 'POST',
@@ -116,6 +127,29 @@ export async function saveBatch(founders) {
   })
   if (!res.ok) throw new Error('Failed to save founders')
   cache.invalidate(CACHE_KEY)
+  return res.json()
+}
+
+export async function saveLpBatch(lps) {
+  const res = await authFetch(routes.seedFounders + '/save-lps-batch', {
+    method: 'POST',
+    headers: apiHeaders(),
+    body: JSON.stringify({ lps })
+  })
+  if (!res.ok) throw new Error('Failed to save LPs')
+  return res.json()
+}
+
+export async function cancelSeedSearch(websetId) {
+  const res = await authFetch(routes.seedFounders + '/search/cancel', {
+    method: 'POST',
+    headers: apiHeaders(),
+    body: JSON.stringify({ websetId })
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.message || 'Failed to cancel seeding')
+  }
   return res.json()
 }
 

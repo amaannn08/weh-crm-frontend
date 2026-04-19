@@ -2,12 +2,12 @@ import React, { useEffect, useRef, useState } from 'react'
 import { ChevronDown, Loader2, RefreshCw, ArrowUp } from 'lucide-react'
 import { PRESETS, FOUNDED_YEARS } from './constants.js'
 import { TagInput } from './shared.jsx'
-import { searchFoundersStream } from '../../api/seedFounders'
+import { cancelSeedSearch, searchFoundersStream } from '../../api/seedFounders'
 import PageShell from '../../components/PageShell'
 
 const RESULT_COUNTS = [10, 25, 50, 100]
 
-export default function SearchForm({ onSearchComplete, onViewSaved }) {
+export default function SearchForm({ onSearchComplete, onViewSaved, onViewSavedLps }) {
   const [query, setQuery]               = useState('')
   const [sectors, setSectors]           = useState([])
   const [backgrounds, setBackgrounds]   = useState([])
@@ -22,6 +22,8 @@ export default function SearchForm({ onSearchComplete, onViewSaved }) {
   const [error, setError]               = useState(null)
   const [searchStatus, setSearchStatus] = useState('')
   const [partialCount, setPartialCount] = useState(0)
+  const [activeWebsetId, setActiveWebsetId] = useState(null)
+  const [canceling, setCanceling] = useState(false)
   const [selectedPresets, setSelectedPresets] = useState(new Set())
   const searchAbortRef = useRef(null)
   const isMountedRef = useRef(false)
@@ -71,7 +73,7 @@ export default function SearchForm({ onSearchComplete, onViewSaved }) {
     keepStreamAliveOnUnmountRef.current = false
     hasAutoOpenedResultsRef.current = false
     liveRowsRef.current = []
-    setSearching(true); setError(null); setSearchStatus('Preparing search...'); setPartialCount(0)
+    setSearching(true); setError(null); setSearchStatus('Preparing search...'); setPartialCount(0); setActiveWebsetId(null); setCanceling(false)
     searchAbortRef.current?.abort()
     const controller = new AbortController()
     searchAbortRef.current = controller
@@ -90,6 +92,7 @@ export default function SearchForm({ onSearchComplete, onViewSaved }) {
         onEvent: (event, payload) => {
           if (event === 'contract') return
           if (event === 'ready') {
+            if (payload?.websetId) setActiveWebsetId(payload.websetId)
             if (isMountedRef.current) setSearchStatus(payload?.message || 'Search started...')
             return
           }
@@ -136,6 +139,22 @@ export default function SearchForm({ onSearchComplete, onViewSaved }) {
     } finally {
       if (isMountedRef.current) setSearching(false)
       searchAbortRef.current = null
+      setCanceling(false)
+      setActiveWebsetId(null)
+    }
+  }
+
+  const handleStopSeeding = async () => {
+    if (!activeWebsetId || canceling) return
+    setCanceling(true)
+    try {
+      await cancelSeedSearch(activeWebsetId)
+      searchAbortRef.current?.abort()
+      if (isMountedRef.current) setSearchStatus('Seeding stopped by user')
+    } catch (err) {
+      if (isMountedRef.current) setError(err.message || 'Failed to stop seeding')
+    } finally {
+      if (isMountedRef.current) setCanceling(false)
     }
   }
 
@@ -144,10 +163,16 @@ export default function SearchForm({ onSearchComplete, onViewSaved }) {
       title="Omni Discovery"
       subtitle=""
       rightHeaderSlot={
-        <button type="button" onClick={onViewSaved}
-          className="inline-flex items-center gap-1.5 rounded-full border border-[#E8E5DE] bg-white px-3 py-1.5 text-xs font-medium text-[#5A5650] hover:bg-[#F5F4F0] transition-colors shadow-sm">
-          <RefreshCw className="h-3 w-3" /> View saved founders
-        </button>
+        <div className="flex items-center gap-2">
+          <button type="button" onClick={onViewSaved}
+            className="inline-flex items-center gap-1.5 rounded-full border border-[#E8E5DE] bg-white px-3 py-1.5 text-xs font-medium text-[#5A5650] hover:bg-[#F5F4F0] transition-colors shadow-sm">
+            <RefreshCw className="h-3 w-3" /> View saved founders
+          </button>
+          <button type="button" onClick={onViewSavedLps}
+            className="inline-flex items-center gap-1.5 rounded-full border border-[#E8E5DE] bg-white px-3 py-1.5 text-xs font-medium text-[#5A5650] hover:bg-[#F5F4F0] transition-colors shadow-sm">
+            <RefreshCw className="h-3 w-3" /> View saved LPs
+          </button>
+        </div>
       }
     >
       <div className="flex h-full flex-col gap-6 overflow-y-auto pb-8 pt-2">
@@ -204,6 +229,12 @@ export default function SearchForm({ onSearchComplete, onViewSaved }) {
                   className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#1A1815] text-white shadow-sm hover:bg-[#333] disabled:opacity-60 transition-colors">
                   {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowUp className="h-4 w-4" strokeWidth={2.5} />}
                 </button>
+                {searching && (
+                  <button type="button" onClick={handleStopSeeding} disabled={!activeWebsetId || canceling}
+                    className="rounded-xl border border-[#E8E5DE] bg-white px-3 py-1.5 text-xs font-medium text-[#5A5650] hover:bg-[#F5F4F0] disabled:opacity-60 transition-colors">
+                    {canceling ? 'Stopping...' : 'Stop seeding'}
+                  </button>
+                )}
               </div>
             </div>
 

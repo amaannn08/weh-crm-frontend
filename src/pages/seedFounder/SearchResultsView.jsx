@@ -1,18 +1,18 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import { Loader2, Search, ArrowDownWideNarrow, ArrowUpNarrowWide, BookmarkPlus, CheckCircle2 } from 'lucide-react'
 import PageShell from '../../components/PageShell'
-import { FounderTable, scoreDotColor } from './shared.jsx'
-import { saveBatch } from '../../api/seedFounders'
+import { FounderTable } from './shared.jsx'
+import { saveBatch, saveLpBatch } from '../../api/seedFounders'
 
-export default function SearchResultsView({ rows, onNewSearch, onSaved }) {
+export default function SearchResultsView({ rows, onNewSearch, onSaved, onSavedLps }) {
   const [search, setSearch]       = useState('')
   const [sortDir, setSortDir]     = useState('desc')
-  const [saving, setSaving]       = useState(false)
+  const [savingType, setSavingType] = useState(null)
   const [savedMsg, setSavedMsg]   = useState(null)
   const [selectedIds, setSelectedIds] = useState(() => new Set())
 
   useEffect(() => {
-    setSelectedIds(new Set(rows.map(r => r.linkedin_id)))
+    setSelectedIds(new Set())
   }, [rows])
 
   const handleToggleSelect = (id, checked) => {
@@ -45,17 +45,32 @@ export default function SearchResultsView({ rows, onNewSearch, onSaved }) {
 
   const selectedRows = useMemo(() => rows.filter(r => selectedIds.has(r.linkedin_id)), [rows, selectedIds])
 
-  const handleSave = async () => {
+  const isSavingFounders = savingType === 'founders'
+  const isSavingLps = savingType === 'lps'
+
+  const handleSaveFounders = async () => {
     if (selectedRows.length === 0) return
-    setSaving(true)
+    setSavingType('founders')
     try {
       const res = await saveBatch(selectedRows)
-      setSavedMsg(`✓ ${res.added} founders saved${res.duplicates ? `, ${res.duplicates} already existed` : ''}`)
-      setTimeout(() => { setSavedMsg(null); onSaved() }, 2000)
+      setSavedMsg(`Saved as founders: ${res.added} added${res.duplicates ? `, ${res.duplicates} duplicates` : ''}`)
     } catch (e) {
-      setSavedMsg('Save failed: ' + e.message)
+      setSavedMsg('Founder save failed: ' + e.message)
     } finally {
-      setSaving(false)
+      setSavingType(null)
+    }
+  }
+
+  const handleSaveLps = async () => {
+    if (selectedRows.length === 0) return
+    setSavingType('lps')
+    try {
+      const res = await saveLpBatch(selectedRows)
+      setSavedMsg(`Saved as LPs: ${res.added} added${res.duplicates ? `, ${res.duplicates} duplicates` : ''}`)
+    } catch (e) {
+      setSavedMsg('LP save failed: ' + e.message)
+    } finally {
+      setSavingType(null)
     }
   }
 
@@ -71,14 +86,28 @@ export default function SearchResultsView({ rows, onNewSearch, onSaved }) {
           <span className="inline-flex items-center gap-1.5 rounded-full border border-[#E8E5DE] bg-white px-3 py-1.5 text-[11px] font-medium text-[#5A5650] shadow-sm">
             Avg ICP <span className="font-semibold text-[#1A1815]">{avgScore}</span>
           </span>
-          <button type="button" onClick={handleSave} disabled={saving || !!savedMsg || selectedRows.length === 0}
+          <button type="button" onClick={handleSaveFounders} disabled={isSavingLps || selectedRows.length === 0}
             className="inline-flex items-center gap-1.5 rounded-full bg-[#FF7102] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#e06500] disabled:opacity-60 transition-colors">
-            {saving
+            {isSavingFounders
               ? <Loader2 className="h-3 w-3 animate-spin" />
-              : savedMsg
-                ? <CheckCircle2 className="h-3 w-3" />
-                : <BookmarkPlus className="h-3 w-3" />}
-            {savedMsg ?? `Save ${selectedRows.length} selected`}
+              : <BookmarkPlus className="h-3 w-3" />}
+            {`Save ${selectedRows.length} as founders`}
+          </button>
+          <button type="button" onClick={handleSaveLps} disabled={isSavingFounders || selectedRows.length === 0}
+            className="inline-flex items-center gap-1.5 rounded-full bg-[#3A4A66] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#314057] disabled:opacity-60 transition-colors">
+            {isSavingLps
+              ? <Loader2 className="h-3 w-3 animate-spin" />
+              : <BookmarkPlus className="h-3 w-3" />}
+            {`Save ${selectedRows.length} as LPs`}
+          </button>
+          {!!savedMsg && <span className="inline-flex items-center gap-1.5 rounded-full border border-[#D9E8DB] bg-[#F2FBF3] px-3 py-1.5 text-[11px] font-medium text-[#2A6A3F]"><CheckCircle2 className="h-3 w-3" />{savedMsg}</span>}
+          <button type="button" onClick={onSaved}
+            className="inline-flex items-center gap-1.5 rounded-full border border-[#E8E5DE] bg-white px-3 py-1.5 text-xs font-medium text-[#5A5650] hover:bg-[#F5F4F0] transition-colors">
+            View saved
+          </button>
+          <button type="button" onClick={onSavedLps}
+            className="inline-flex items-center gap-1.5 rounded-full border border-[#E8E5DE] bg-white px-3 py-1.5 text-xs font-medium text-[#5A5650] hover:bg-[#F5F4F0] transition-colors">
+            View saved LPs
           </button>
           <button type="button" onClick={onNewSearch}
             className="inline-flex items-center gap-1.5 rounded-full bg-[#1A1815] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#333] transition-colors">
@@ -97,7 +126,7 @@ export default function SearchResultsView({ rows, onNewSearch, onSaved }) {
             {sortDir === 'desc' ? <ArrowDownWideNarrow className="h-3.5 w-3.5" /> : <ArrowUpNarrowWide className="h-3.5 w-3.5" />}
             Score {sortDir === 'desc' ? '↓' : '↑'}
           </button>
-          <span className="ml-auto text-xs text-[#9A958E] italic">Preview mode — click "Save" to persist these results</span>
+          <span className="ml-auto text-xs text-[#9A958E] italic">Preview mode — select rows, then save as Founder or LP</span>
         </div>
         <div className="min-h-0 flex-1 overflow-auto bg-white">
           <FounderTable rows={filtered} showStatus={false} showDelete={false} 
