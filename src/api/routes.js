@@ -9,7 +9,8 @@ export const routes = {
   news: API_BASE ? `${API_BASE}/news` : '/api/news',
   companies: API_BASE ? `${API_BASE}/companies` : '/api/companies',
   newsletters: API_BASE ? `${API_BASE}/newsletters` : '/api/newsletters',
-  admin: API_BASE ? `${API_BASE}/admin` : '/api/admin'
+  admin: API_BASE ? `${API_BASE}/admin` : '/api/admin',
+  seedFounders: API_BASE ? `${API_BASE}/seed-founders` : '/api/seed-founders'
 }
 
 export function conversationUrl(id) {
