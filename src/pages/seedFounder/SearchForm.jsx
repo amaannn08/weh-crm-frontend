@@ -1,8 +1,8 @@
-import React, { useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { ChevronDown, Loader2, RefreshCw, ArrowUp } from 'lucide-react'
 import { PRESETS, FOUNDED_YEARS } from './constants.js'
 import { TagInput } from './shared.jsx'
-import { searchFounders } from '../../api/seedFounders'
+import { searchFoundersStream } from '../../api/seedFounders'
 import PageShell from '../../components/PageShell'
 
 const RESULT_COUNTS = [10, 25, 50, 100]
@@ -20,10 +20,24 @@ export default function SearchForm({ onSearchComplete, onViewSaved }) {
   const [showFilters, setShowFilters]   = useState(true)
   const [searching, setSearching]       = useState(false)
   const [error, setError]               = useState(null)
+  const [searchStatus, setSearchStatus] = useState('')
+  const [partialCount, setPartialCount] = useState(0)
   const [selectedPresets, setSelectedPresets] = useState(new Set())
+  const searchAbortRef = useRef(null)
+  const isMountedRef = useRef(false)
+  const keepStreamAliveOnUnmountRef = useRef(false)
+  const hasAutoOpenedResultsRef = useRef(false)
+  const liveRowsRef = useRef([])
   const [filters, setFilters] = useState({
     aiScoring: false, excludeExisting: false, emailEnrichment: false, firstConnections: false,
   })
+
+  const mergeUniqueRows = (existingRows, incomingRows) => {
+    const keyFor = (row) => row.linkedin_id || row.linkedin_url || `${row.name || ''}:${row.company_name || ''}:${row.title || ''}`
+    const map = new Map(existingRows.map((row) => [keyFor(row), row]))
+    for (const row of incomingRows) map.set(keyFor(row), row)
+    return Array.from(map.values())
+  }
 
   const toggleYear = (y) => setFoundedYears(p => p.includes(y) ? p.filter(x => x !== y) : [...p, y])
   const toggleFilter = (k) => setFilters(p => ({ ...p, [k]: !p[k] }))
@@ -43,25 +57,85 @@ export default function SearchForm({ onSearchComplete, onViewSaved }) {
     setSectors([...mergedSec])
   }
 
+  useEffect(() => {
+    isMountedRef.current = true
+    return () => {
+      isMountedRef.current = false
+      if (!keepStreamAliveOnUnmountRef.current) {
+        searchAbortRef.current?.abort()
+      }
+    }
+  }, [])
+
   const handleSearch = async () => {
-    setSearching(true); setError(null)
+    keepStreamAliveOnUnmountRef.current = false
+    hasAutoOpenedResultsRef.current = false
+    liveRowsRef.current = []
+    setSearching(true); setError(null); setSearchStatus('Preparing search...'); setPartialCount(0)
+    searchAbortRef.current?.abort()
+    const controller = new AbortController()
+    searchAbortRef.current = controller
     try {
       const stageVal = stage === 'Pre-seed or Seed' ? 'seed-stage or pre-seed'
         : stage === 'Any stage' ? '' : stage
-      const result = await searchFounders({
+      const result = await searchFoundersStream({
         query, backgrounds, sectors,
         location: location === 'All India' ? 'India' : location,
         stage: stageVal,
         year: foundedYears.length > 0 ? foundedYears.join(' or ') : '',
         count: exportCount,
         save: false
+      }, {
+        signal: controller.signal,
+        onEvent: (event, payload) => {
+          if (event === 'contract') return
+          if (event === 'ready') {
+            if (isMountedRef.current) setSearchStatus(payload?.message || 'Search started...')
+            return
+          }
+          if (event === 'item_batch') {
+            const batchRows = payload?.results || []
+            liveRowsRef.current = mergeUniqueRows(liveRowsRef.current, batchRows)
+            const total = payload?.totalSoFar ?? 0
+            if (isMountedRef.current) {
+              setPartialCount(total)
+              setSearchStatus(`Found ${total} founders so far...`)
+            }
+            if (!hasAutoOpenedResultsRef.current && liveRowsRef.current.length > 0) {
+              hasAutoOpenedResultsRef.current = true
+              keepStreamAliveOnUnmountRef.current = true
+              onSearchComplete(liveRowsRef.current)
+            } else if (hasAutoOpenedResultsRef.current) {
+              onSearchComplete(liveRowsRef.current)
+            }
+            return
+          }
+          if (event === 'progress') {
+            const elapsedSec = Math.floor((payload?.elapsedMs || 0) / 1000)
+            const statusMsg = payload?.message
+              || (payload?.status
+                ? `Webset status: ${payload.status} (${payload?.foundCount || 0} found, ${elapsedSec}s)`
+                : 'Searching...')
+            if (isMountedRef.current) setSearchStatus(statusMsg)
+            return
+          }
+          if (event === 'done') {
+            if (isMountedRef.current) setSearchStatus('Search complete')
+          }
+        }
       })
       if (result.success) onSearchComplete(result.results || [])
-      else setError(result.message || 'No founders found.')
+      else if (isMountedRef.current) setError(result.message || 'No founders found.')
     } catch (err) {
-      setError(err.message || 'Search failed')
+      keepStreamAliveOnUnmountRef.current = false
+      if (err.name === 'AbortError') {
+        if (isMountedRef.current) setError('Search cancelled')
+      } else {
+        if (isMountedRef.current) setError(err.message || 'Search failed')
+      }
     } finally {
-      setSearching(false)
+      if (isMountedRef.current) setSearching(false)
+      searchAbortRef.current = null
     }
   }
 
@@ -212,6 +286,10 @@ export default function SearchForm({ onSearchComplete, onViewSaved }) {
               </div>
             )}
           </div>
+          {searchStatus && !error && <p className="mt-2 text-center text-xs text-[#9A958E]">{searchStatus}</p>}
+          {!!partialCount && searching && !error && (
+            <p className="mt-1 text-center text-[11px] text-[#B1ACA3]">Live results discovered: {partialCount}</p>
+          )}
           {error && <p className="mt-2 text-center text-sm text-red-500">{error}</p>}
         </div>
       </div>

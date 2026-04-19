@@ -4,6 +4,25 @@ import { cache } from './cache'
 
 const CACHE_KEY = 'seedFounders:list'
 
+function parseSseEvent(raw) {
+  const lines = raw.split('\n')
+  let event = 'message'
+  const dataLines = []
+
+  for (const line of lines) {
+    if (line.startsWith('event:')) event = line.slice(6).trim()
+    if (line.startsWith('data:')) dataLines.push(line.slice(5).trim())
+  }
+
+  if (!dataLines.length) return null
+  const payloadText = dataLines.join('\n')
+  try {
+    return { event, payload: JSON.parse(payloadText) }
+  } catch {
+    return { event, payload: { message: payloadText } }
+  }
+}
+
 export async function searchFounders(params) {
   const res = await authFetch(routes.seedFounders + '/search', {
     method: 'POST',
@@ -15,6 +34,62 @@ export async function searchFounders(params) {
     throw new Error(err.message || 'Search failed')
   }
   return res.json()
+}
+
+export async function searchFoundersStream(params, { onEvent, signal } = {}) {
+  const res = await authFetch(routes.seedFounders + '/search', {
+    method: 'POST',
+    headers: {
+      ...apiHeaders(),
+      Accept: 'text/event-stream'
+    },
+    body: JSON.stringify({ ...params, save: false }),
+    signal
+  })
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.message || 'Search failed')
+  }
+
+  const contentType = res.headers.get('content-type') || ''
+  if (!contentType.includes('text/event-stream') || !res.body) {
+    const json = await res.json().catch(() => null)
+    if (json) {
+      onEvent?.('done', json)
+      return json
+    }
+    throw new Error('Streaming unavailable for this response')
+  }
+
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+  let donePayload = null
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+    const chunks = buffer.split('\n\n')
+    buffer = chunks.pop() ?? ''
+
+    for (const chunk of chunks) {
+      const parsed = parseSseEvent(chunk)
+      if (!parsed) continue
+      // Supported stream events: ready, contract, progress, item_batch, done, error
+      onEvent?.(parsed.event, parsed.payload)
+      if (parsed.event === 'done') donePayload = parsed.payload
+      if (parsed.event === 'error') {
+        throw new Error(parsed.payload?.message || 'Search stream failed')
+      }
+    }
+  }
+
+  if (!donePayload) {
+    throw new Error('Search stream ended before completion')
+  }
+  return donePayload
 }
 
 export async function listFounders({ search, stage, status, limit = 200, offset = 0 } = {}) {
