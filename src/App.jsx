@@ -11,23 +11,33 @@ import PortfolioNewsPage from './pages/PortfolioNews'
 import SeedFounderPage from './pages/SeedFounder'
 import LoginPage from './pages/Login'
 import { useAuth } from './context/AuthContext'
+import { useDealData } from './context/DealDataContext'
+import AppLoadingScreen from './components/AppLoadingScreen'
 
 function ProtectedRoute({ children }) {
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, authResolved } = useAuth()
+  if (!authResolved) return <AppLoadingScreen label="Loading workspace..." />
   if (!isAuthenticated) return <Navigate to="/login" replace />
   return children
 }
 
 function PublicLoginOnly({ children }) {
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, authResolved } = useAuth()
+  if (!authResolved) return <AppLoadingScreen label="Loading workspace..." />
   if (isAuthenticated) return <Navigate to="/dashboard" replace />
   return children
 }
 
 function AuthedLayout({ children }) {
+  const { isBootstrapping } = useDealData()
+
   return (
     <ProtectedRoute>
-      <AppLayout>{children}</AppLayout>
+      {isBootstrapping ? (
+        <AppLoadingScreen label="Preparing your workspace..." />
+      ) : (
+        <AppLayout>{children}</AppLayout>
+      )}
     </ProtectedRoute>
   )
 }

@@ -116,7 +116,7 @@ export async function uploadDealFiles(id, files) {
   for (const file of files) {
     formData.append('files', file)
   }
-  const res = await fetch(`${dealUrl(id)}/files`, {
+  const res = await authFetch(`${dealUrl(id)}/files`, {
     method: 'POST',
     headers: apiHeaders(null),
     body: formData
@@ -150,7 +150,7 @@ export async function ingestTranscript(file) {
   const formData = new FormData()
   formData.append('transcript', file)
   const base = API_BASE ? `${API_BASE}/deals` : '/api/deals'
-  const res = await fetch(`${base}/ingest-transcript`, {
+  const res = await authFetch(`${base}/ingest-transcript`, {
     method: 'POST',
     headers: apiHeaders(null), // null = don't set Content-Type, let browser set multipart boundary
     body: formData
@@ -168,7 +168,7 @@ export async function ingestTranscriptForDeal(dealId, file) {
   const formData = new FormData()
   formData.append('transcript', file)
   const base = API_BASE ? `${API_BASE}/deals` : '/api/deals'
-  const res = await fetch(`${base}/${dealId}/ingest-transcript`, {
+  const res = await authFetch(`${base}/${dealId}/ingest-transcript`, {
     method: 'POST',
     headers: apiHeaders(null),
     body: formData

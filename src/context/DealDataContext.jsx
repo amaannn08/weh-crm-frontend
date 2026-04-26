@@ -1,9 +1,15 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { fetchDeals, fetchDeal } from '../api/deals'
 import { fetchMeetings } from '../api/meetings'
 import { fetchNews, fetchCompanies } from '../api/news'
 import { fetchConversations } from '../api/conversations'
 import { useAuth } from './AuthContext'
+import {
+  getUserKeyFromToken,
+  readSessionSnapshot,
+  saveSessionSnapshot,
+  sessionKeys
+} from '../utils/sessionCache'
 
 const DealDataContext = createContext(null)
 
@@ -18,32 +24,77 @@ export function DealDataProvider({ children }) {
   const [meetings, setMeetings] = useState([])
   const [meetingsLoaded, setMeetingsLoaded] = useState(false)
   const [meetingsLoading, setMeetingsLoading] = useState(false)
+  const [isBootstrapping, setIsBootstrapping] = useState(false)
+  const [bootstrapComplete, setBootstrapComplete] = useState(false)
 
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, authResolved, token } = useAuth()
+  const hasRehydratedRef = useRef(false)
+  const userKey = useMemo(() => getUserKeyFromToken(token), [token])
 
   // ── Eager prefetch: fires immediately when JWT is present ───────────────────
   // All 4 requests run in parallel. Deals + meetings update React state so
   // Dashboard and sidebar populate instantly. News + companies just warm the
   // cache.js store so PortfolioNews opens with no loading delay.
   useEffect(() => {
-    if (!isAuthenticated) return
+    if (!authResolved) return
+    if (!isAuthenticated) {
+      hasRehydratedRef.current = false
+      setDeals([])
+      setMeetings([])
+      setDealById({})
+      setDealsLoaded(false)
+      setMeetingsLoaded(false)
+      setIsBootstrapping(false)
+      setBootstrapComplete(false)
+      return
+    }
 
-    // Deals — populate context state
-    fetchDeals()
+    let hasSnapshot = false
+    if (!hasRehydratedRef.current) {
+      const persistedDeals = readSessionSnapshot(sessionKeys.deals, userKey)
+      const persistedMeetings = readSessionSnapshot(sessionKeys.meetings, userKey)
+      if (persistedDeals) {
+        setDeals(persistedDeals)
+        setDealsLoaded(true)
+        hasSnapshot = true
+      }
+      if (persistedMeetings) {
+        setMeetings(persistedMeetings)
+        setMeetingsLoaded(true)
+        hasSnapshot = true
+      }
+      setBootstrapComplete(hasSnapshot)
+      setIsBootstrapping(!hasSnapshot)
+      hasRehydratedRef.current = true
+    }
+
+    const dealsPromise = fetchDeals({ force: true })
       .then(data => { setDeals(data); setDealsLoaded(true) })
       .catch(() => {})
-
-    // Meetings — populate context state
-    fetchMeetings()
+    const meetingsPromise = fetchMeetings({ force: true })
       .then(data => { setMeetings(Array.isArray(data) ? data : []); setMeetingsLoaded(true) })
       .catch(() => {})
+    const warmups = [
+      fetchNews().catch(() => {}),
+      fetchCompanies().catch(() => {}),
+      fetchConversations().catch(() => {})
+    ]
 
-    // News + companies — warm cache only (results stored in cache.js, not React state)
-    fetchNews().catch(() => {})
-    fetchCompanies().catch(() => {})
-    // Conversations — warm cache so Calls/Agent page opens instantly
-    fetchConversations().catch(() => {})
-  }, [isAuthenticated])
+    Promise.allSettled([dealsPromise, meetingsPromise, ...warmups]).finally(() => {
+      setIsBootstrapping(false)
+      setBootstrapComplete(true)
+    })
+  }, [authResolved, isAuthenticated, userKey])
+
+  useEffect(() => {
+    if (!isAuthenticated) return
+    saveSessionSnapshot(sessionKeys.deals, deals, userKey)
+  }, [deals, isAuthenticated, userKey])
+
+  useEffect(() => {
+    if (!isAuthenticated) return
+    saveSessionSnapshot(sessionKeys.meetings, meetings, userKey)
+  }, [meetings, isAuthenticated, userKey])
 
   // ── Deals loaders ───────────────────────────────────────────────────────────
   const loadDeals = useCallback(
@@ -162,6 +213,8 @@ export function DealDataProvider({ children }) {
       meetings,
       meetingsLoaded,
       meetingsLoading,
+      isBootstrapping,
+      bootstrapComplete,
       loadMeetings,
       updateMeetingInCache,
       removeMeetingFromCache,
@@ -171,6 +224,7 @@ export function DealDataProvider({ children }) {
       deals, dealsLoaded, dealsLoading, dealById,
       loadDeals, loadDealBundle, updateDealInCache, updateDealBundleInCache,
       meetings, meetingsLoaded, meetingsLoading,
+      isBootstrapping, bootstrapComplete,
       loadMeetings, updateMeetingInCache, removeMeetingFromCache, addMeetingToCache,
     ]
   )

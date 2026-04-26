@@ -1,25 +1,32 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { getToken, setToken as persistToken, clearToken } from '../auth'
 import { cache } from '../api/cache'
+import { clearSessionSnapshot, getUserKeyFromToken } from '../utils/sessionCache'
 
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
   const [token, setTokenState] = useState(null)
+  const [authResolved, setAuthResolved] = useState(false)
 
   useEffect(() => {
     setTokenState(getToken())
+    setAuthResolved(true)
   }, [])
 
   const login = (newToken) => {
     persistToken(newToken)
     setTokenState(newToken)
+    setAuthResolved(true)
   }
 
   const logout = () => {
+    const userKey = getUserKeyFromToken(token)
     clearToken()
     cache.clear()
+    clearSessionSnapshot(userKey)
     setTokenState(null)
+    setAuthResolved(true)
   }
 
   // Automatically log out when any API call receives a 401 (token expired)
@@ -32,7 +39,7 @@ export function AuthProvider({ children }) {
   const isAuthenticated = !!token
 
   return (
-    <AuthContext.Provider value={{ token, login, logout, isAuthenticated }}>
+    <AuthContext.Provider value={{ token, login, logout, isAuthenticated, authResolved }}>
       {children}
     </AuthContext.Provider>
   )
