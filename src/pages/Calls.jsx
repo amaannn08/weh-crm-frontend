@@ -626,7 +626,7 @@ function CallsPage() {
 
       {showSessionsModal && (
         <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/30">
-          <div className="w-full max-w-sm rounded-xl bg-white p-4 shadow-lg">
+          <div className="w-full max-w-[640px] rounded-xl bg-white p-4 shadow-lg">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-sm font-semibold text-[#1A1815]">Sessions</h2>
               <button
