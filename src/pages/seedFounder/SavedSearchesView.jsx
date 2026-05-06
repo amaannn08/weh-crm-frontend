@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { Loader2, Trash2, Play, ChevronRight, ChevronLeft, RefreshCw } from 'lucide-react'
+import { Loader2, Trash2, Play, ChevronRight, ChevronLeft, RefreshCw, Pencil, Check, X } from 'lucide-react'
 import PageShell from '../../components/PageShell'
 import { FounderTable } from './shared.jsx'
 import {
   listSavedSearches,
   deleteSavedSearch,
+  renameSavedSearch,
   listSavedSearchRuns,
   getSavedSearchRunResults,
   runSavedSearchNow
@@ -51,6 +52,9 @@ export default function SavedSearchesView({ onNewSearch }) {
   // Running state
   const [runningId, setRunningId] = useState(null)
   const [deletingId, setDeletingId] = useState(null)
+  const [editingId, setEditingId] = useState(null)
+  const [editingName, setEditingName] = useState('')
+  const [savingName, setSavingName] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -97,6 +101,25 @@ export default function SavedSearchesView({ onNewSearch }) {
       setRunResults(data.run?.results_json || [])
     } finally {
       setRunResultsLoading(false)
+    }
+  }
+
+  const handleStartEdit = (s) => {
+    setEditingId(s.id)
+    setEditingName(s.name)
+  }
+
+  const handleSaveName = async (id) => {
+    if (!editingName.trim()) return
+    setSavingName(true)
+    try {
+      const updated = await renameSavedSearch(id, editingName.trim())
+      setSavedSearches(prev => prev.map(s => s.id === id ? { ...s, name: updated.name } : s))
+      setEditingId(null)
+    } catch (e) {
+      alert(e.message || 'Failed to rename')
+    } finally {
+      setSavingName(false)
     }
   }
 
@@ -259,38 +282,53 @@ export default function SavedSearchesView({ onNewSearch }) {
                 key={s.id}
                 className={`flex items-center justify-between gap-3 px-4 py-3 ${i > 0 ? 'border-t border-[#E8E5DE]' : ''}`}
               >
-                <button
-                  type="button"
-                  onClick={() => handleSelectSearch(s)}
-                  className="flex-1 text-left min-w-0"
-                >
-                  <p className="text-sm font-medium text-[#1A1815] truncate">{s.name}</p>
+                <div className="flex-1 min-w-0">
+                  {editingId === s.id ? (
+                    <input
+                      autoFocus
+                      value={editingName}
+                      onChange={e => setEditingName(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') handleSaveName(s.id); if (e.key === 'Escape') setEditingId(null) }}
+                      className="w-full rounded-lg border border-[#FF7102] bg-white px-2 py-1 text-sm text-[#1A1815] focus:outline-none"
+                    />
+                  ) : (
+                    <button type="button" onClick={() => handleSelectSearch(s)} className="w-full text-left">
+                      <p className="text-sm font-medium text-[#1A1815] truncate">{s.name}</p>
+                    </button>
+                  )}
                   <ParamPills params={s.params_json} />
                   <p className="text-[11px] text-[#9A958E] mt-1">
                     {s.run_count} run{s.run_count !== 1 ? 's' : ''} · Last: {formatDate(s.last_run_at)} · Next: {formatDate(s.next_run_at)}
                   </p>
-                </button>
+                </div>
                 <div className="flex items-center gap-1.5 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => handleRunNow(s)}
-                    disabled={runningId === s.id}
-                    title="Run now"
-                    className="rounded-full border border-[#E8E5DE] bg-white p-1.5 text-[#5A5650] hover:bg-[#F5F4F0] disabled:opacity-60"
-                  >
-                    {runningId === s.id
-                      ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      : <RefreshCw className="w-3.5 h-3.5" />}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(s.id)}
-                    disabled={deletingId === s.id}
-                    title="Delete"
-                    className="rounded-full border border-[#E8E5DE] bg-white p-1.5 text-[#5A5650] hover:bg-red-50 hover:border-red-200 hover:text-red-600 disabled:opacity-60"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                  {editingId === s.id ? (
+                    <>
+                      <button type="button" onClick={() => handleSaveName(s.id)} disabled={savingName} title="Save"
+                        className="rounded-full border border-emerald-200 bg-emerald-50 p-1.5 text-emerald-600 hover:bg-emerald-100 disabled:opacity-60">
+                        <Check className="w-3.5 h-3.5" />
+                      </button>
+                      <button type="button" onClick={() => setEditingId(null)} title="Cancel"
+                        className="rounded-full border border-[#E8E5DE] bg-white p-1.5 text-[#5A5650] hover:bg-[#F5F4F0]">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button type="button" onClick={() => handleStartEdit(s)} title="Rename"
+                        className="rounded-full border border-[#E8E5DE] bg-white p-1.5 text-[#5A5650] hover:bg-[#F5F4F0]">
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button type="button" onClick={() => handleRunNow(s)} disabled={runningId === s.id} title="Run now"
+                        className="rounded-full border border-[#E8E5DE] bg-white p-1.5 text-[#5A5650] hover:bg-[#F5F4F0] disabled:opacity-60">
+                        {runningId === s.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                      </button>
+                      <button type="button" onClick={() => handleDelete(s.id)} disabled={deletingId === s.id} title="Delete"
+                        className="rounded-full border border-[#E8E5DE] bg-white p-1.5 text-[#5A5650] hover:bg-red-50 hover:border-red-200 hover:text-red-600 disabled:opacity-60">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             ))}

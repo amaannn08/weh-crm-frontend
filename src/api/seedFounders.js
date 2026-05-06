@@ -223,6 +223,16 @@ export async function deleteSavedSearch(id) {
   return res.json()
 }
 
+export async function renameSavedSearch(id, name) {
+  const res = await authFetch(`${routes.seedFounders}/saved-searches/${id}`, {
+    method: 'PATCH',
+    headers: apiHeaders(),
+    body: JSON.stringify({ name })
+  })
+  if (!res.ok) throw new Error('Failed to rename saved search')
+  return res.json()
+}
+
 export async function listSavedSearchRuns(id) {
   const res = await authFetch(`${routes.seedFounders}/saved-searches/${id}/results`, { headers: apiHeaders() })
   if (!res.ok) throw new Error('Failed to load runs')

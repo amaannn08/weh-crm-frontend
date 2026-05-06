@@ -223,15 +223,16 @@ export default function SearchForm({ onSearchComplete, onViewSaved, onViewSavedL
   }
 
   const handleSaveSearch = async () => {
-    const name = window.prompt('Name this saved search (it will run weekly):')
-    if (!name?.trim()) return
+    const stageVal = stage === 'Pre-seed or Seed' ? 'seed-stage or pre-seed' : stage === 'Any stage' ? '' : stage
+    const nameParts = [query.trim(), stageVal, ...sectors, ...backgrounds.slice(0, 2)].filter(Boolean)
+    const name = nameParts.join(', ') || 'Founder search'
     setSavingSearch(true)
     setSavedSearchMsg(null)
     try {
       const params = {
         query, backgrounds, sectors,
         location: location === 'All India' ? 'India' : location,
-        stage: stage === 'Pre-seed or Seed' ? 'seed-stage or pre-seed' : stage === 'Any stage' ? '' : stage,
+        stage: stageVal,
         year: foundedYears.length > 0 ? foundedYears.join(' or ') : '',
         count: exportCount
       }
@@ -320,6 +321,10 @@ export default function SearchForm({ onSearchComplete, onViewSaved, onViewSavedL
                     </div>
                   )}
                 </div>
+                <button type="button" onClick={handleSaveSearch} disabled={savingSearch}
+                  className="rounded-xl border border-[#E8E5DE] bg-white px-3 py-1.5 text-xs font-medium text-[#5A5650] hover:bg-[#FFEFE2] hover:border-[#FFD0AB] hover:text-[#C85A1A] disabled:opacity-60 transition-colors">
+                  {savingSearch ? 'Saving…' : '+ Save search'}
+                </button>
                 <button type="button" onClick={handleSearch} disabled={searching}
                   className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#1A1815] text-white shadow-sm hover:bg-[#333] disabled:opacity-60 transition-colors">
                   {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowUp className="h-4 w-4" strokeWidth={2.5} />}
@@ -417,16 +422,6 @@ export default function SearchForm({ onSearchComplete, onViewSaved, onViewSavedL
             <p className="mt-1 text-center text-[11px] text-[#B1ACA3]">Live results discovered: {partialCount}</p>
           )}
           {error && <p className="mt-2 text-center text-sm text-red-500">{error}</p>}
-          <div className="mt-3 flex items-center justify-center gap-3">
-            <button
-              type="button"
-              onClick={handleSaveSearch}
-              disabled={savingSearch}
-              className="inline-flex items-center gap-1.5 rounded-full border border-[#E8E5DE] bg-white px-3 py-1.5 text-xs font-medium text-[#5A5650] hover:bg-[#F5F4F0] disabled:opacity-60 transition-colors"
-            >
-              {savingSearch ? 'Saving…' : '+ Save this search'}
-            </button>
-          </div>
           {savedSearchMsg && (
             <p className="mt-2 text-center text-[11px] text-emerald-600">{savedSearchMsg}</p>
           )}
