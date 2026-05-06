@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { ChevronDown, Loader2, RefreshCw, ArrowUp } from 'lucide-react'
 import { PRESETS, FOUNDED_YEARS } from './constants.js'
 import { TagInput } from './shared.jsx'
-import { cancelSeedSearch, searchFoundersStream } from '../../api/seedFounders'
+import { cancelSeedSearch, searchFoundersStream, createSavedSearch } from '../../api/seedFounders'
 import PageShell from '../../components/PageShell'
 
 const RESULT_COUNTS = [10, 25, 50, 100]
@@ -32,7 +32,7 @@ function upsertRecentSearch(entry) {
   saveRecentSearches(existing)
 }
 
-export default function SearchForm({ onSearchComplete, onViewSaved, onViewSavedLps, onViewRecentSearches }) {
+export default function SearchForm({ onSearchComplete, onViewSaved, onViewSavedLps, onViewRecentSearches, onViewSavedSearches }) {
   const [query, setQuery]               = useState('')
   const [sectors, setSectors]           = useState([])
   const [backgrounds, setBackgrounds]   = useState([])
@@ -48,6 +48,8 @@ export default function SearchForm({ onSearchComplete, onViewSaved, onViewSavedL
   const [searchStatus, setSearchStatus] = useState('')
   const [partialCount, setPartialCount] = useState(0)
   const [activeWebsetId, setActiveWebsetId] = useState(null)
+  const [savingSearch, setSavingSearch] = useState(false)
+  const [savedSearchMsg, setSavedSearchMsg] = useState(null)
   const [canceling, setCanceling] = useState(false)
   const [selectedPresets, setSelectedPresets] = useState(new Set())
   const searchAbortRef = useRef(null)
@@ -220,6 +222,29 @@ export default function SearchForm({ onSearchComplete, onViewSaved, onViewSavedL
     }
   }
 
+  const handleSaveSearch = async () => {
+    const name = window.prompt('Name this saved search (it will run weekly):')
+    if (!name?.trim()) return
+    setSavingSearch(true)
+    setSavedSearchMsg(null)
+    try {
+      const params = {
+        query, backgrounds, sectors,
+        location: location === 'All India' ? 'India' : location,
+        stage: stage === 'Pre-seed or Seed' ? 'seed-stage or pre-seed' : stage === 'Any stage' ? '' : stage,
+        year: foundedYears.length > 0 ? foundedYears.join(' or ') : '',
+        count: exportCount
+      }
+      await createSavedSearch(name.trim(), params)
+      setSavedSearchMsg('Search saved! It will run automatically every week.')
+      setTimeout(() => setSavedSearchMsg(null), 4000)
+    } catch (e) {
+      setSavedSearchMsg('Failed to save: ' + (e.message || 'unknown error'))
+    } finally {
+      setSavingSearch(false)
+    }
+  }
+
   return (
     <PageShell
       title="Omni Discovery"
@@ -237,6 +262,10 @@ export default function SearchForm({ onSearchComplete, onViewSaved, onViewSavedL
           <button type="button" onClick={onViewRecentSearches}
             className="inline-flex items-center gap-1.5 rounded-full border border-[#E8E5DE] bg-white px-3 py-1.5 text-xs font-medium text-[#5A5650] hover:bg-[#F5F4F0] transition-colors shadow-sm">
             <RefreshCw className="h-3 w-3" /> View recent searched
+          </button>
+          <button type="button" onClick={onViewSavedSearches}
+            className="inline-flex items-center gap-1.5 rounded-full border border-[#FFD0AB] bg-[#FFEFE2] px-3 py-1.5 text-xs font-medium text-[#C85A1A] hover:bg-[#FFD0AB] transition-colors shadow-sm">
+            Saved searches
           </button>
         </div>
       }
@@ -388,6 +417,19 @@ export default function SearchForm({ onSearchComplete, onViewSaved, onViewSavedL
             <p className="mt-1 text-center text-[11px] text-[#B1ACA3]">Live results discovered: {partialCount}</p>
           )}
           {error && <p className="mt-2 text-center text-sm text-red-500">{error}</p>}
+          <div className="mt-3 flex items-center justify-center gap-3">
+            <button
+              type="button"
+              onClick={handleSaveSearch}
+              disabled={savingSearch}
+              className="inline-flex items-center gap-1.5 rounded-full border border-[#E8E5DE] bg-white px-3 py-1.5 text-xs font-medium text-[#5A5650] hover:bg-[#F5F4F0] disabled:opacity-60 transition-colors"
+            >
+              {savingSearch ? 'Saving…' : '+ Save this search'}
+            </button>
+          </div>
+          {savedSearchMsg && (
+            <p className="mt-2 text-center text-[11px] text-emerald-600">{savedSearchMsg}</p>
+          )}
         </div>
       </div>
     </PageShell>

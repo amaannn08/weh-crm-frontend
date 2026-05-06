@@ -192,3 +192,57 @@ export async function deleteLp(id) {
   if (!res.ok) throw new Error('Failed to delete LP')
   return res.json()
 }
+
+// ─── Saved Searches ──────────────────────────────────────────────────────────
+
+export async function createSavedSearch(name, params) {
+  const res = await authFetch(`${routes.seedFounders}/saved-searches`, {
+    method: 'POST',
+    headers: apiHeaders(),
+    body: JSON.stringify({ name, params })
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || 'Failed to save search')
+  }
+  return res.json()
+}
+
+export async function listSavedSearches() {
+  const res = await authFetch(`${routes.seedFounders}/saved-searches`, { headers: apiHeaders() })
+  if (!res.ok) throw new Error('Failed to load saved searches')
+  return res.json()
+}
+
+export async function deleteSavedSearch(id) {
+  const res = await authFetch(`${routes.seedFounders}/saved-searches/${id}`, {
+    method: 'DELETE',
+    headers: apiHeaders()
+  })
+  if (!res.ok) throw new Error('Failed to delete saved search')
+  return res.json()
+}
+
+export async function listSavedSearchRuns(id) {
+  const res = await authFetch(`${routes.seedFounders}/saved-searches/${id}/results`, { headers: apiHeaders() })
+  if (!res.ok) throw new Error('Failed to load runs')
+  return res.json()
+}
+
+export async function getSavedSearchRunResults(searchId, runId) {
+  const res = await authFetch(`${routes.seedFounders}/saved-searches/${searchId}/results/${runId}`, { headers: apiHeaders() })
+  if (!res.ok) throw new Error('Failed to load run results')
+  return res.json()
+}
+
+export async function runSavedSearchNow(id) {
+  const res = await authFetch(`${routes.seedFounders}/saved-searches/${id}/run`, {
+    method: 'POST',
+    headers: apiHeaders()
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.error || 'Failed to run search')
+  }
+  return res.json()
+}
