@@ -32,7 +32,7 @@ function upsertRecentSearch(entry) {
   saveRecentSearches(existing)
 }
 
-export default function SearchForm({ onSearchComplete, onViewSaved, onViewSavedLps, onViewRecentSearches, onViewSavedSearches }) {
+export default function SearchForm({ onSearchComplete, onSavedSearchCreated, onBatch, onViewSaved, onViewSavedLps, onViewRecentSearches, onViewSavedSearches }) {
   const [query, setQuery]               = useState('')
   const [sectors, setSectors]           = useState([])
   const [backgrounds, setBackgrounds]   = useState([])
@@ -150,6 +150,7 @@ export default function SearchForm({ onSearchComplete, onViewSaved, onViewSavedL
               currentSearchRef.current = { ...currentSearchRef.current, resultsCount: total }
               upsertRecentSearch(currentSearchRef.current)
             }
+            onBatch?.(liveRowsRef.current)
             if (!hasAutoOpenedResultsRef.current && liveRowsRef.current.length > 0) {
               hasAutoOpenedResultsRef.current = true
               keepStreamAliveOnUnmountRef.current = true
@@ -236,8 +237,19 @@ export default function SearchForm({ onSearchComplete, onViewSaved, onViewSavedL
         year: foundedYears.length > 0 ? foundedYears.join(' or ') : '',
         count: exportCount
       }
-      await createSavedSearch(name.trim(), params)
-      setSavedSearchMsg('Search saved! It will run automatically every week.')
+      const saved = await createSavedSearch(name.trim(), params)
+      
+      // Always tell parent - it will handle whether search is running or completed
+      onSavedSearchCreated?.(saved?.id, liveRowsRef.current)
+      
+      if (searching) {
+        setSavedSearchMsg('Search saved! Results are being stored as they come in.')
+      } else if (liveRowsRef.current.length > 0) {
+        setSavedSearchMsg(`Search saved with ${liveRowsRef.current.length} results!`)
+      } else {
+        setSavedSearchMsg('Search saved! Run it to get results.')
+      }
+      
       setTimeout(() => setSavedSearchMsg(null), 4000)
     } catch (e) {
       setSavedSearchMsg('Failed to save: ' + (e.message || 'unknown error'))
@@ -325,16 +337,12 @@ export default function SearchForm({ onSearchComplete, onViewSaved, onViewSavedL
                   className="rounded-xl border border-[#E8E5DE] bg-white px-3 py-1.5 text-xs font-medium text-[#5A5650] hover:bg-[#FFEFE2] hover:border-[#FFD0AB] hover:text-[#C85A1A] disabled:opacity-60 transition-colors">
                   {savingSearch ? 'Saving…' : '+ Save search'}
                 </button>
-                <button type="button" onClick={handleSearch} disabled={searching}
-                  className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#1A1815] text-white shadow-sm hover:bg-[#333] disabled:opacity-60 transition-colors">
-                  {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowUp className="h-4 w-4" strokeWidth={2.5} />}
+                <button type="button" onClick={searching ? handleStopSeeding : handleSearch} disabled={searching && (!activeWebsetId || canceling)}
+                  className={`flex h-9 w-9 items-center justify-center rounded-xl shadow-sm transition-colors disabled:opacity-60 ${searching ? 'bg-red-500 hover:bg-red-600' : 'bg-[#1A1815] hover:bg-[#333]'} text-white`}>
+                  {searching
+                    ? <span className="h-3.5 w-3.5 rounded-sm bg-white" />
+                    : <ArrowUp className="h-4 w-4" strokeWidth={2.5} />}
                 </button>
-                {searching && (
-                  <button type="button" onClick={handleStopSeeding} disabled={!activeWebsetId || canceling}
-                    className="rounded-xl border border-[#E8E5DE] bg-white px-3 py-1.5 text-xs font-medium text-[#5A5650] hover:bg-[#F5F4F0] disabled:opacity-60 transition-colors">
-                    {canceling ? 'Stopping...' : 'Stop seeding'}
-                  </button>
-                )}
               </div>
             </div>
 

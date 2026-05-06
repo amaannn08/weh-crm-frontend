@@ -10,6 +10,7 @@ import {
   getSavedSearchRunResults,
   runSavedSearchNow
 } from '../../api/seedFounders'
+import { cache } from '../../api/cache'
 
 function formatDate(ts) {
   if (!ts) return '—'
@@ -49,8 +50,9 @@ export default function SavedSearchesView({ onNewSearch }) {
   const [runResults, setRunResults] = useState([])
   const [runResultsLoading, setRunResultsLoading] = useState(false)
 
-  // Running state
   const [runningId, setRunningId] = useState(null)
+  const [runningStatus, setRunningStatus] = useState('')
+  const [runningCount, setRunningCount] = useState(0)
   const [deletingId, setDeletingId] = useState(null)
   const [editingId, setEditingId] = useState(null)
   const [editingName, setEditingName] = useState('')
@@ -65,6 +67,12 @@ export default function SavedSearchesView({ onNewSearch }) {
       setLoading(false)
     }
   }, [])
+
+  const forceRefresh = useCallback(async () => {
+    // Clear cache and reload
+    cache.invalidate('seedFounders:savedSearches')
+    await load()
+  }, [load])
 
   useEffect(() => { load() }, [load])
 
@@ -92,6 +100,19 @@ export default function SavedSearchesView({ onNewSearch }) {
       setRunsLoading(false)
     }
   }
+
+  const refreshRuns = useCallback(async () => {
+    if (!selectedSearch) return
+    // Clear cache for this search's runs and reload
+    cache.invalidate(`seedFounders:savedSearchRuns:${selectedSearch.id}`)
+    setRunsLoading(true)
+    try {
+      const data = await listSavedSearchRuns(selectedSearch.id)
+      setRuns(data.runs || [])
+    } finally {
+      setRunsLoading(false)
+    }
+  }, [selectedSearch])
 
   const handleSelectRun = async (run) => {
     setSelectedRun(run)
@@ -123,22 +144,54 @@ export default function SavedSearchesView({ onNewSearch }) {
     }
   }
 
+  const runAbortRef = React.useRef(null)
+
   const handleRunNow = async (search) => {
     if (!window.confirm(`Run "${search.name}" now? This may take a few minutes.`)) return
     setRunningId(search.id)
+    setRunningStatus('Starting...')
+    setRunningCount(0)
+    const controller = new AbortController()
+    runAbortRef.current = controller
     try {
-      await runSavedSearchNow(search.id)
-      // Refresh the list and runs if viewing this search
-      await load()
+      await runSavedSearchNow(search.id, controller.signal, (event, payload) => {
+        if (event === 'ready') {
+          setRunningStatus(payload?.message || 'Search started')
+        } else if (event === 'item_batch') {
+          const total = payload?.totalSoFar ?? 0
+          setRunningCount(total)
+          setRunningStatus(`Found ${total} results...`)
+        } else if (event === 'progress') {
+          setRunningStatus(payload?.message || 'Searching...')
+        } else if (event === 'done') {
+          setRunningStatus(`Complete: ${payload?.count || 0} results`)
+        }
+      })
+      // Force refresh to get updated data
+      await forceRefresh()
       if (selectedSearch?.id === search.id) {
-        const data = await listSavedSearchRuns(search.id)
-        setRuns(data.runs || [])
+        await refreshRuns()
       }
     } catch (e) {
-      alert(e.message || 'Run failed')
+      if (e.name !== 'AbortError') {
+        alert(e.message || 'Run failed')
+        setRunningStatus('Failed')
+      } else {
+        setRunningStatus('Cancelled')
+      }
     } finally {
-      setRunningId(null)
+      setTimeout(() => {
+        setRunningId(null)
+        setRunningStatus('')
+        setRunningCount(0)
+      }, 2000)
+      runAbortRef.current = null
     }
+  }
+
+  const handleStopRun = () => {
+    runAbortRef.current?.abort()
+    setRunningId(null)
   }
 
   // ── Run results view ──────────────────────────────────────────────────────
@@ -191,25 +244,56 @@ export default function SavedSearchesView({ onNewSearch }) {
       <PageShell>
         <div className="flex flex-col gap-4 p-4">
           <div className="flex items-center justify-between gap-2">
-            <button
-              type="button"
-              onClick={() => setSelectedSearch(null)}
-              className="flex items-center gap-1 text-xs text-[#5A5650] hover:text-[#1A1815]"
-            >
-              <ChevronLeft className="w-3.5 h-3.5" />
-              Back to saved searches
-            </button>
-            <button
-              type="button"
-              onClick={() => handleRunNow(selectedSearch)}
-              disabled={runningId === selectedSearch.id}
-              className="flex items-center gap-1.5 rounded-full bg-[#1A1815] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#2d2a26] disabled:opacity-60"
-            >
-              {runningId === selectedSearch.id
-                ? <><Loader2 className="w-3 h-3 animate-spin" /> Running…</>
-                : <><Play className="w-3 h-3" /> Run now</>}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setSelectedSearch(null)}
+                className="flex items-center gap-1 text-xs text-[#5A5650] hover:text-[#1A1815]"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+                Back to saved searches
+              </button>
+              <button
+                type="button"
+                onClick={refreshRuns}
+                disabled={runsLoading}
+                title="Refresh runs"
+                className="rounded-full border border-[#E8E5DE] bg-white p-1.5 text-[#5A5650] hover:bg-[#F5F4F0] disabled:opacity-60"
+              >
+                <RefreshCw className={`w-3 h-3 ${runsLoading ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
+            <div className="flex items-center gap-2">
+              {runningId === selectedSearch.id && (
+                <button
+                  type="button"
+                  onClick={handleStopRun}
+                  className="flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100"
+                >
+                  Stop
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => handleRunNow(selectedSearch)}
+                disabled={!!runningId}
+                className="flex items-center gap-1.5 rounded-full bg-[#1A1815] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#2d2a26] disabled:opacity-60"
+              >
+                {runningId === selectedSearch.id
+                  ? <><Loader2 className="w-3 h-3 animate-spin" /> Running…</>
+                  : <><Play className="w-3 h-3" /> Run now</>}
+              </button>
+            </div>
           </div>
+
+          {runningId === selectedSearch.id && runningStatus && (
+            <div className="rounded-xl border border-[#FFD0AB] bg-[#FFEFE2] px-4 py-2">
+              <p className="text-xs text-[#C85A1A]">{runningStatus}</p>
+              {runningCount > 0 && (
+                <p className="text-[11px] text-[#9A958E] mt-0.5">Live results: {runningCount}</p>
+              )}
+            </div>
+          )}
 
           <div>
             <h2 className="text-sm font-semibold text-[#1A1815]">{selectedSearch.name}</h2>
@@ -253,7 +337,18 @@ export default function SavedSearchesView({ onNewSearch }) {
     <PageShell>
       <div className="flex flex-col gap-4 p-4">
         <div className="flex items-center justify-between gap-2">
-          <h1 className="text-base font-semibold text-[#1A1815]">Saved Searches</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-base font-semibold text-[#1A1815]">Saved Searches</h1>
+            <button
+              type="button"
+              onClick={forceRefresh}
+              disabled={loading}
+              title="Refresh"
+              className="rounded-full border border-[#E8E5DE] bg-white p-1.5 text-[#5A5650] hover:bg-[#F5F4F0] disabled:opacity-60"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
           <button
             type="button"
             onClick={onNewSearch}
@@ -319,10 +414,16 @@ export default function SavedSearchesView({ onNewSearch }) {
                         className="rounded-full border border-[#E8E5DE] bg-white p-1.5 text-[#5A5650] hover:bg-[#F5F4F0]">
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
-                      <button type="button" onClick={() => handleRunNow(s)} disabled={runningId === s.id} title="Run now"
+                      <button type="button" onClick={() => handleRunNow(s)} disabled={!!runningId} title="Run now"
                         className="rounded-full border border-[#E8E5DE] bg-white p-1.5 text-[#5A5650] hover:bg-[#F5F4F0] disabled:opacity-60">
                         {runningId === s.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
                       </button>
+                      {runningId === s.id && (
+                        <button type="button" onClick={handleStopRun} title="Stop"
+                          className="rounded-full border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-medium text-red-600 hover:bg-red-100">
+                          Stop
+                        </button>
+                      )}
                       <button type="button" onClick={() => handleDelete(s.id)} disabled={deletingId === s.id} title="Delete"
                         className="rounded-full border border-[#E8E5DE] bg-white p-1.5 text-[#5A5650] hover:bg-red-50 hover:border-red-200 hover:text-red-600 disabled:opacity-60">
                         <Trash2 className="w-3.5 h-3.5" />
