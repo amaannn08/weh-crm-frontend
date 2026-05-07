@@ -1,6 +1,7 @@
 import { routes } from './routes'
 import { apiHeaders, authFetch } from './client'
 import { cache } from './cache'
+import { getPreloadedFounders, getPreloadedLps, getPreloadedSavedSearches, invalidatePreloadedData } from '../utils/dataPreloader'
 
 const CACHE_KEY = 'seedFounders:list'
 
@@ -93,6 +94,15 @@ export async function searchFoundersStream(params, { onEvent, signal } = {}) {
 }
 
 export async function listFounders({ search, stage, status, limit = 200, offset = 0 } = {}) {
+  // If no filters, use preloaded data for instant load
+  if (!search && (!stage || stage === 'All stages') && (!status || status === 'All') && offset === 0) {
+    const preloaded = getPreloadedFounders()
+    if (preloaded) {
+      console.log('[API] Using preloaded founders data')
+      return preloaded
+    }
+  }
+
   const params = new URLSearchParams()
   if (search) params.set('search', search)
   if (stage && stage !== 'All stages') params.set('stage', stage)
@@ -109,6 +119,15 @@ export async function listFounders({ search, stage, status, limit = 200, offset 
 }
 
 export async function listLps({ search, limit = 200, offset = 0 } = {}) {
+  // If no filters, use preloaded data for instant load
+  if (!search && offset === 0) {
+    const preloaded = getPreloadedLps()
+    if (preloaded) {
+      console.log('[API] Using preloaded LPs data')
+      return preloaded
+    }
+  }
+
   const params = new URLSearchParams()
   if (search) params.set('search', search)
   params.set('limit', limit)
@@ -137,6 +156,7 @@ export async function saveBatch(founders) {
   })
   if (!res.ok) throw new Error('Failed to save founders')
   cache.invalidate(CACHE_KEY)
+  invalidatePreloadedData() // Force refresh preloaded data
   return res.json()
 }
 
@@ -233,6 +253,7 @@ export async function createSavedSearch(name, params) {
   // Invalidate saved searches list cache
   cache.invalidate(SAVED_SEARCHES_CACHE_KEY)
   localStorage.removeItem(SAVED_SEARCHES_LOCALSTORAGE_KEY)
+  invalidatePreloadedData() // Force refresh preloaded data
   return res.json()
 }
 
@@ -252,7 +273,24 @@ export async function createSavedSearchAndRun(name, params, signal, onProgress =
 }
 
 export async function listSavedSearches() {
-  // Try localStorage first for instant load
+  // Try preloaded data first for instant load
+  const preloaded = getPreloadedSavedSearches()
+  if (preloaded) {
+    console.log('[API] Using preloaded saved searches data')
+    // Return preloaded immediately, fetch fresh in background
+    setTimeout(() => {
+      cache.get(SAVED_SEARCHES_CACHE_KEY, async () => {
+        const res = await authFetch(`${routes.seedFounders}/saved-searches`, { headers: apiHeaders() })
+        if (!res.ok) throw new Error('Failed to load saved searches')
+        const data = await res.json()
+        saveToLocalStorage(SAVED_SEARCHES_LOCALSTORAGE_KEY, data)
+        return data
+      }, 300_000).catch(() => {})
+    }, 0)
+    return preloaded
+  }
+  
+  // Try localStorage cache
   const cached = loadFromLocalStorage(SAVED_SEARCHES_LOCALSTORAGE_KEY, 5 * 60 * 1000)
   if (cached) {
     // Return cached data immediately, fetch fresh in background
@@ -263,19 +301,19 @@ export async function listSavedSearches() {
         const data = await res.json()
         saveToLocalStorage(SAVED_SEARCHES_LOCALSTORAGE_KEY, data)
         return data
-      }, 300_000).catch(() => {}) // 5 min cache, silent fail
+      }, 300_000).catch(() => {})
     }, 0)
     return cached
   }
   
-  // No localStorage cache, fetch normally
+  // No cache, fetch normally
   return cache.get(SAVED_SEARCHES_CACHE_KEY, async () => {
     const res = await authFetch(`${routes.seedFounders}/saved-searches`, { headers: apiHeaders() })
     if (!res.ok) throw new Error('Failed to load saved searches')
     const data = await res.json()
     saveToLocalStorage(SAVED_SEARCHES_LOCALSTORAGE_KEY, data)
     return data
-  }, 300_000) // Cache for 5 minutes
+  }, 300_000)
 }
 
 export async function deleteSavedSearch(id) {

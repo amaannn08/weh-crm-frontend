@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import AppLayout from './layout/AppLayout'
 import DashboardPage from './pages/Dashboard'
@@ -13,6 +13,7 @@ import LoginPage from './pages/Login'
 import { useAuth } from './context/AuthContext'
 import { useDealData } from './context/DealDataContext'
 import AppLoadingScreen from './components/AppLoadingScreen'
+import { preloadSeedFounderData } from './utils/dataPreloader'
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, authResolved } = useAuth()
@@ -30,6 +31,14 @@ function PublicLoginOnly({ children }) {
 
 function AuthedLayout({ children }) {
   const { isBootstrapping } = useDealData()
+  const { isAuthenticated } = useAuth()
+
+  // Preload seed founder data on app startup (after auth)
+  useEffect(() => {
+    if (isAuthenticated && !isBootstrapping) {
+      preloadSeedFounderData()
+    }
+  }, [isAuthenticated, isBootstrapping])
 
   return (
     <ProtectedRoute>
