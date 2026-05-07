@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { ChevronDown, Loader2, RefreshCw, ArrowUp } from 'lucide-react'
 import { PRESETS, FOUNDED_YEARS } from './constants.js'
 import { TagInput } from './shared.jsx'
-import { cancelSeedSearch, searchFoundersStream, createSavedSearch } from '../../api/seedFounders'
+import { cancelSeedSearch, searchFoundersStream, createSavedSearchAndRun } from '../../api/seedFounders'
 import PageShell from '../../components/PageShell'
 
 const RESULT_COUNTS = [10, 25, 50, 100]
@@ -50,6 +50,8 @@ export default function SearchForm({ onSearchComplete, onSavedSearchCreated, onB
   const [activeWebsetId, setActiveWebsetId] = useState(null)
   const [savingSearch, setSavingSearch] = useState(false)
   const [savedSearchMsg, setSavedSearchMsg] = useState(null)
+  const [firstRunStatus, setFirstRunStatus] = useState('')
+  const [firstRunCount, setFirstRunCount] = useState(0)
   const [canceling, setCanceling] = useState(false)
   const [selectedPresets, setSelectedPresets] = useState(new Set())
   const searchAbortRef = useRef(null)
@@ -229,6 +231,11 @@ export default function SearchForm({ onSearchComplete, onSavedSearchCreated, onB
     const name = nameParts.join(', ') || 'Founder search'
     setSavingSearch(true)
     setSavedSearchMsg(null)
+    setFirstRunStatus('')
+    setFirstRunCount(0)
+    
+    const controller = new AbortController()
+    
     try {
       const params = {
         query, backgrounds, sectors,
@@ -237,22 +244,41 @@ export default function SearchForm({ onSearchComplete, onSavedSearchCreated, onB
         year: foundedYears.length > 0 ? foundedYears.join(' or ') : '',
         count: exportCount
       }
-      const saved = await createSavedSearch(name.trim(), params)
+      
+      setSavedSearchMsg('Creating saved search and starting first run...')
+      
+      const saved = await createSavedSearchAndRun(name.trim(), params, controller.signal, (event, payload) => {
+        if (event === 'ready') {
+          setFirstRunStatus('First run started!')
+        } else if (event === 'item_batch') {
+          const total = payload?.totalSoFar ?? 0
+          setFirstRunCount(total)
+          setFirstRunStatus(`First run: Found ${total} results...`)
+        } else if (event === 'progress') {
+          setFirstRunStatus(payload?.message || 'Searching...')
+        } else if (event === 'done') {
+          setFirstRunStatus(`First run complete: ${payload?.count || 0} results!`)
+          setTimeout(() => {
+            setFirstRunStatus('')
+            setFirstRunCount(0)
+          }, 3000)
+        }
+      })
       
       // Always tell parent - it will handle whether search is running or completed
       onSavedSearchCreated?.(saved?.id, liveRowsRef.current)
       
-      if (searching) {
-        setSavedSearchMsg('Search saved! Results are being stored as they come in.')
-      } else if (liveRowsRef.current.length > 0) {
-        setSavedSearchMsg(`Search saved with ${liveRowsRef.current.length} results!`)
+      if (saved.firstRunStarted) {
+        setSavedSearchMsg(`Search saved! First run completed.`)
       } else {
-        setSavedSearchMsg('Search saved! Run it to get results.')
+        setSavedSearchMsg('Search saved!')
       }
       
       setTimeout(() => setSavedSearchMsg(null), 4000)
     } catch (e) {
       setSavedSearchMsg('Failed to save: ' + (e.message || 'unknown error'))
+      setFirstRunStatus('')
+      setFirstRunCount(0)
     } finally {
       setSavingSearch(false)
     }
@@ -432,6 +458,14 @@ export default function SearchForm({ onSearchComplete, onSavedSearchCreated, onB
           {error && <p className="mt-2 text-center text-sm text-red-500">{error}</p>}
           {savedSearchMsg && (
             <p className="mt-2 text-center text-[11px] text-emerald-600">{savedSearchMsg}</p>
+          )}
+          {firstRunStatus && (
+            <div className="mt-2 rounded-xl border border-[#FFD0AB] bg-[#FFEFE2] px-4 py-2 mx-auto max-w-md">
+              <p className="text-xs text-[#C85A1A] text-center">{firstRunStatus}</p>
+              {firstRunCount > 0 && (
+                <p className="text-[11px] text-[#9A958E] text-center mt-0.5">Live results: {firstRunCount}</p>
+              )}
+            </div>
           )}
         </div>
       </div>

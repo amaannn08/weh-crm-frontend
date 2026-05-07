@@ -236,6 +236,21 @@ export async function createSavedSearch(name, params) {
   return res.json()
 }
 
+export async function createSavedSearchAndRun(name, params, signal, onProgress = null) {
+  // First create the saved search
+  const saved = await createSavedSearch(name, params)
+  
+  // Then immediately trigger the first run with streaming
+  try {
+    await runSavedSearchNow(saved.id, signal, onProgress)
+    return { ...saved, firstRunStarted: true }
+  } catch (e) {
+    // If run fails, still return the saved search (it was created successfully)
+    console.warn('First run failed:', e)
+    return { ...saved, firstRunStarted: false, firstRunError: e.message }
+  }
+}
+
 export async function listSavedSearches() {
   // Try localStorage first for instant load
   const cached = loadFromLocalStorage(SAVED_SEARCHES_LOCALSTORAGE_KEY, 5 * 60 * 1000)
