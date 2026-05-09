@@ -32,7 +32,7 @@ function upsertRecentSearch(entry) {
   saveRecentSearches(existing)
 }
 
-export default function SearchForm({ onSearchComplete, onSavedSearchCreated, onBatch, onViewSaved, onViewSavedLps, onViewRecentSearches, onViewSavedSearches }) {
+export default function SearchForm({ onSearchComplete, onLiveUpdate, onStreamDone, onViewSaved, onViewSavedLps, onViewRecentSearches, onViewSavedSearches }) {
   const [query, setQuery]               = useState('')
   const [sectors, setSectors]           = useState([])
   const [backgrounds, setBackgrounds]   = useState([])
@@ -60,6 +60,7 @@ export default function SearchForm({ onSearchComplete, onSavedSearchCreated, onB
   const hasAutoOpenedResultsRef = useRef(false)
   const liveRowsRef = useRef([])
   const currentSearchRef = useRef(null)
+  const activeSessionIdRef = useRef(null)
   const [filters, setFilters] = useState({
     aiScoring: false, excludeExisting: false, emailEnrichment: false, firstConnections: false,
   })
@@ -103,6 +104,7 @@ export default function SearchForm({ onSearchComplete, onSavedSearchCreated, onB
     keepStreamAliveOnUnmountRef.current = false
     hasAutoOpenedResultsRef.current = false
     liveRowsRef.current = []
+    activeSessionIdRef.current = null
     setSearching(true); setError(null); setSearchStatus('Preparing search...'); setPartialCount(0); setActiveWebsetId(null); setCanceling(false)
     currentSearchRef.current = {
       localId: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -117,22 +119,28 @@ export default function SearchForm({ onSearchComplete, onSavedSearchCreated, onB
     searchAbortRef.current?.abort()
     const controller = new AbortController()
     searchAbortRef.current = controller
+
+    // Build a session name for display
+    const stageVal = stage === 'Pre-seed or Seed' ? 'seed-stage or pre-seed'
+      : stage === 'Any stage' ? '' : stage
+    const sessionName = (query.trim()) ||
+      [stageVal, ...sectors, ...backgrounds.slice(0, 2)].filter(Boolean).join(', ') ||
+      'Founder search'
+
     try {
-      const stageVal = stage === 'Pre-seed or Seed' ? 'seed-stage or pre-seed'
-        : stage === 'Any stage' ? '' : stage
       const result = await searchFoundersStream({
         query, backgrounds, sectors,
         location: location === 'All India' ? 'India' : location,
         stage: stageVal,
         year: foundedYears.length > 0 ? foundedYears.join(' or ') : '',
-        count: exportCount,
-        save: false
+        count: exportCount
       }, {
         signal: controller.signal,
         onEvent: (event, payload) => {
           if (event === 'contract') return
           if (event === 'ready') {
             if (payload?.websetId) setActiveWebsetId(payload.websetId)
+            if (payload?.sessionId) activeSessionIdRef.current = payload.sessionId
             if (payload?.websetId && currentSearchRef.current) {
               currentSearchRef.current = { ...currentSearchRef.current, websetId: payload.websetId }
               upsertRecentSearch(currentSearchRef.current)
@@ -152,13 +160,12 @@ export default function SearchForm({ onSearchComplete, onSavedSearchCreated, onB
               currentSearchRef.current = { ...currentSearchRef.current, resultsCount: total }
               upsertRecentSearch(currentSearchRef.current)
             }
-            onBatch?.(liveRowsRef.current)
+            // Push live rows to parent so SeededContentView can show them immediately
+            onLiveUpdate?.(liveRowsRef.current)
             if (!hasAutoOpenedResultsRef.current && liveRowsRef.current.length > 0) {
               hasAutoOpenedResultsRef.current = true
               keepStreamAliveOnUnmountRef.current = true
-              onSearchComplete(liveRowsRef.current)
-            } else if (hasAutoOpenedResultsRef.current) {
-              onSearchComplete(liveRowsRef.current)
+              onSearchComplete(activeSessionIdRef.current, sessionName, liveRowsRef.current)
             }
             return
           }
@@ -173,11 +180,20 @@ export default function SearchForm({ onSearchComplete, onSavedSearchCreated, onB
           }
           if (event === 'done') {
             if (isMountedRef.current) setSearchStatus('Search complete')
+            onStreamDone?.()
+            // If we haven't opened results yet (e.g. 0 results during stream), open now
+            if (!hasAutoOpenedResultsRef.current) {
+              const finalRows = payload?.results || liveRowsRef.current
+              onSearchComplete(activeSessionIdRef.current || payload?.sessionId, sessionName, finalRows)
+            }
           }
         }
       })
-      if (result.success) onSearchComplete(result.results || [])
-      else if (isMountedRef.current) setError(result.message || 'No founders found.')
+      if (result.success && !hasAutoOpenedResultsRef.current) {
+        onSearchComplete(result.sessionId || activeSessionIdRef.current, sessionName, result.results || [])
+      } else if (!result.success && isMountedRef.current) {
+        setError(result.message || 'No founders found.')
+      }
       if (currentSearchRef.current) {
         currentSearchRef.current = {
           ...currentSearchRef.current,
@@ -233,9 +249,21 @@ export default function SearchForm({ onSearchComplete, onSavedSearchCreated, onB
     setSavedSearchMsg(null)
     setFirstRunStatus('')
     setFirstRunCount(0)
-    
+
     const controller = new AbortController()
-    
+    let savedSessionId = null
+    let savedSessionName = name.trim() || 'Founder search'
+    let hasOpenedResults = false
+    const savedLiveRows = []
+
+    const mergeRows = (incoming) => {
+      const keyFor = r => r.linkedin_id || r.linkedin_url || `${r.name}:${r.company_name}:${r.title}`
+      const map = new Map(savedLiveRows.map(r => [keyFor(r), r]))
+      for (const r of incoming) map.set(keyFor(r), r)
+      savedLiveRows.length = 0
+      savedLiveRows.push(...map.values())
+    }
+
     try {
       const params = {
         query, backgrounds, sectors,
@@ -244,36 +272,54 @@ export default function SearchForm({ onSearchComplete, onSavedSearchCreated, onB
         year: foundedYears.length > 0 ? foundedYears.join(' or ') : '',
         count: exportCount
       }
-      
+
       setSavedSearchMsg('Creating saved search and starting first run...')
-      
+
       const saved = await createSavedSearchAndRun(name.trim(), params, controller.signal, (event, payload) => {
         if (event === 'ready') {
           setFirstRunStatus('First run started!')
+          if (payload?.sessionId) savedSessionId = payload.sessionId
         } else if (event === 'item_batch') {
           const total = payload?.totalSoFar ?? 0
+          const batchRows = payload?.results || []
+          mergeRows(batchRows)
           setFirstRunCount(total)
           setFirstRunStatus(`First run: Found ${total} results...`)
+          // Auto-open results view on first batch, just like a regular search
+          if (!hasOpenedResults && savedLiveRows.length > 0) {
+            hasOpenedResults = true
+            onSearchComplete(savedSessionId, savedSessionName, [...savedLiveRows])
+          } else if (hasOpenedResults) {
+            onLiveUpdate?.([...savedLiveRows])
+          }
         } else if (event === 'progress') {
           setFirstRunStatus(payload?.message || 'Searching...')
         } else if (event === 'done') {
+          const finalSessionId = payload?.sessionId || savedSessionId
           setFirstRunStatus(`First run complete: ${payload?.count || 0} results!`)
+          onStreamDone?.()
+          // If we never opened results (e.g. 0 results during stream), open now
+          if (!hasOpenedResults) {
+            hasOpenedResults = true
+            onSearchComplete(finalSessionId, savedSessionName, [...savedLiveRows])
+          }
           setTimeout(() => {
             setFirstRunStatus('')
             setFirstRunCount(0)
           }, 3000)
         }
       })
-      
-      // Always tell parent - it will handle whether search is running or completed
-      onSavedSearchCreated?.(saved?.id, liveRowsRef.current)
-      
+
       if (saved.firstRunStarted) {
-        setSavedSearchMsg(`Search saved! First run completed.`)
+        setSavedSearchMsg('Search saved! First run completed.')
       } else {
         setSavedSearchMsg('Search saved!')
+        // If run never started, still navigate to results if we have a session
+        if (!hasOpenedResults && savedSessionId) {
+          onSearchComplete(savedSessionId, savedSessionName, [])
+        }
       }
-      
+
       setTimeout(() => setSavedSearchMsg(null), 4000)
     } catch (e) {
       setSavedSearchMsg('Failed to save: ' + (e.message || 'unknown error'))

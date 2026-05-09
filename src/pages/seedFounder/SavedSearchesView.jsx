@@ -1,16 +1,114 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { Loader2, Trash2, Play, ChevronRight, ChevronLeft, RefreshCw, Pencil, Check, X } from 'lucide-react'
+import { Loader2, Trash2, Play, ChevronRight, ChevronLeft, RefreshCw, Pencil, Check, X, BookmarkPlus, CheckCircle2 } from 'lucide-react'
 import PageShell from '../../components/PageShell'
+import SeededContentView from './SeededContentView.jsx'
 import { FounderTable } from './shared.jsx'
 import {
   listSavedSearches,
+  fetchSavedSearchesFresh,
   deleteSavedSearch,
   renameSavedSearch,
   listSavedSearchRuns,
   getSavedSearchRunResults,
-  runSavedSearchNow
+  runSavedSearchNow,
+  saveBatch,
+  saveLpBatch
 } from '../../api/seedFounders'
 import { cache } from '../../api/cache'
+
+// ── Legacy run results view (for runs without session_id) ─────────────────────
+function LegacyRunResultsView({ run, searchName, savedSearchId, onBack, onNewSearch }) {
+  const [rows, setRows] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [selectedIds, setSelectedIds] = useState(() => new Set())
+  const [savingType, setSavingType] = useState(null)
+  const [savedMsg, setSavedMsg] = useState(null)
+
+  useEffect(() => {
+    if (!savedSearchId || !run?.id) { setLoading(false); return }
+    setLoading(true)
+    getSavedSearchRunResults(savedSearchId, run.id)
+      .then(data => setRows(data.run?.results_json || []))
+      .catch(() => setRows([]))
+      .finally(() => setLoading(false))
+  }, [savedSearchId, run?.id])
+
+  const selectedRows = rows.filter(r => selectedIds.has(r.linkedin_id || r.linkedin_url))
+
+  const handleToggleSelect = (id, checked) => {
+    setSelectedIds(prev => { const n = new Set(prev); checked ? n.add(id) : n.delete(id); return n })
+  }
+  const handleToggleAll = (checked) => {
+    setSelectedIds(checked ? new Set(rows.map(r => r.linkedin_id || r.linkedin_url)) : new Set())
+  }
+
+  const handleSaveFounders = async () => {
+    if (!selectedRows.length) return
+    setSavingType('founders')
+    try {
+      const res = await saveBatch(selectedRows)
+      setSavedMsg(`Saved: ${res.added} added${res.duplicates ? `, ${res.duplicates} duplicates` : ''}`)
+    } catch (e) { setSavedMsg('Failed: ' + e.message) }
+    finally { setSavingType(null) }
+  }
+
+  const handleSaveLps = async () => {
+    if (!selectedRows.length) return
+    setSavingType('lps')
+    try {
+      const res = await saveLpBatch(selectedRows)
+      setSavedMsg(`Saved as LPs: ${res.added} added${res.duplicates ? `, ${res.duplicates} duplicates` : ''}`)
+    } catch (e) { setSavedMsg('Failed: ' + e.message) }
+    finally { setSavingType(null) }
+  }
+
+  return (
+    <PageShell
+      title={searchName || 'Run Results'}
+      subtitle={`${rows.length} founders found`}
+      rightHeaderSlot={
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" onClick={handleSaveFounders} disabled={savingType === 'lps' || !selectedRows.length}
+            className="inline-flex items-center gap-1.5 rounded-full bg-[#FF7102] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#e06500] disabled:opacity-60 transition-colors">
+            {savingType === 'founders' ? <Loader2 className="h-3 w-3 animate-spin" /> : <BookmarkPlus className="h-3 w-3" />}
+            Save {selectedRows.length} as founders
+          </button>
+          <button type="button" onClick={handleSaveLps} disabled={savingType === 'founders' || !selectedRows.length}
+            className="inline-flex items-center gap-1.5 rounded-full bg-[#3A4A66] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#314057] disabled:opacity-60 transition-colors">
+            {savingType === 'lps' ? <Loader2 className="h-3 w-3 animate-spin" /> : <BookmarkPlus className="h-3 w-3" />}
+            Save {selectedRows.length} as LPs
+          </button>
+          {savedMsg && (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-[#D9E8DB] bg-[#F2FBF3] px-3 py-1.5 text-[11px] font-medium text-[#2A6A3F]">
+              <CheckCircle2 className="h-3 w-3" />{savedMsg}
+            </span>
+          )}
+          <button type="button" onClick={onBack}
+            className="inline-flex items-center gap-1 rounded-full border border-[#E8E5DE] bg-white px-3 py-1.5 text-xs font-medium text-[#5A5650] hover:bg-[#F5F4F0] transition-colors">
+            <ChevronLeft className="w-3.5 h-3.5" /> Back to runs
+          </button>
+        </div>
+      }
+    >
+      <div className="min-h-0 flex-1 overflow-auto bg-white">
+        {loading
+          ? <div className="flex items-center justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-[#FF7102]" /></div>
+          : rows.length === 0
+            ? <p className="px-4 py-10 text-center text-sm text-[#9A958E]">No results for this run.</p>
+            : <FounderTable
+                rows={rows}
+                showStatus={false}
+                showDelete={false}
+                selectable={true}
+                selectedIds={selectedIds}
+                onToggleSelect={handleToggleSelect}
+                onToggleAll={handleToggleAll}
+              />
+        }
+      </div>
+    </PageShell>
+  )
+}
 
 function formatDate(ts) {
   if (!ts) return '—'
@@ -36,19 +134,17 @@ function ParamPills({ params = {} }) {
   )
 }
 
-export default function SavedSearchesView({ onNewSearch }) {
+export default function SavedSearchesView({ onNewSearch, onSearchComplete, onStreamDone }) {
   const [savedSearches, setSavedSearches] = useState([])
   const [loading, setLoading] = useState(true)
 
   // Drill-down state
-  const [selectedSearch, setSelectedSearch] = useState(null) // saved search object
+  const [selectedSearch, setSelectedSearch] = useState(null)
   const [runs, setRuns] = useState([])
   const [runsLoading, setRunsLoading] = useState(false)
 
   // Run results drill-down
   const [selectedRun, setSelectedRun] = useState(null)
-  const [runResults, setRunResults] = useState([])
-  const [runResultsLoading, setRunResultsLoading] = useState(false)
 
   const [runningId, setRunningId] = useState(null)
   const [runningStatus, setRunningStatus] = useState('')
@@ -61,7 +157,8 @@ export default function SavedSearchesView({ onNewSearch }) {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const data = await listSavedSearches()
+      // Always fetch fresh from server — bypass all caches
+      const data = await fetchSavedSearchesFresh()
       setSavedSearches(data.savedSearches || [])
     } finally {
       setLoading(false)
@@ -69,8 +166,6 @@ export default function SavedSearchesView({ onNewSearch }) {
   }, [])
 
   const forceRefresh = useCallback(async () => {
-    // Clear cache and reload
-    cache.invalidate('seedFounders:savedSearches')
     await load()
   }, [load])
 
@@ -91,7 +186,6 @@ export default function SavedSearchesView({ onNewSearch }) {
   const handleSelectSearch = async (search) => {
     setSelectedSearch(search)
     setSelectedRun(null)
-    setRunResults([])
     setRunsLoading(true)
     try {
       const data = await listSavedSearchRuns(search.id)
@@ -114,15 +208,8 @@ export default function SavedSearchesView({ onNewSearch }) {
     }
   }, [selectedSearch])
 
-  const handleSelectRun = async (run) => {
+  const handleSelectRun = (run) => {
     setSelectedRun(run)
-    setRunResultsLoading(true)
-    try {
-      const data = await getSavedSearchRunResults(selectedSearch.id, run.id)
-      setRunResults(data.run?.results_json || [])
-    } finally {
-      setRunResultsLoading(false)
-    }
   }
 
   const handleStartEdit = (s) => {
@@ -153,21 +240,48 @@ export default function SavedSearchesView({ onNewSearch }) {
     setRunningCount(0)
     const controller = new AbortController()
     runAbortRef.current = controller
+
+    let capturedSessionId = null
+    let hasNavigated = false
+    const liveRows = []
+
+    const mergeRows = (incoming) => {
+      const keyFor = r => r.linkedin_id || r.linkedin_url || `${r.name}:${r.company_name}`
+      const map = new Map(liveRows.map(r => [keyFor(r), r]))
+      for (const r of incoming) map.set(keyFor(r), r)
+      liveRows.length = 0
+      liveRows.push(...map.values())
+    }
+
     try {
       await runSavedSearchNow(search.id, controller.signal, (event, payload) => {
         if (event === 'ready') {
           setRunningStatus(payload?.message || 'Search started')
+          if (payload?.sessionId) capturedSessionId = payload.sessionId
         } else if (event === 'item_batch') {
           const total = payload?.totalSoFar ?? 0
+          const batchRows = payload?.results || []
+          mergeRows(batchRows)
           setRunningCount(total)
           setRunningStatus(`Found ${total} results...`)
+          // Don't navigate during streaming - wait for dedup to complete
         } else if (event === 'progress') {
           setRunningStatus(payload?.message || 'Searching...')
         } else if (event === 'done') {
-          setRunningStatus(`Complete: ${payload?.count || 0} results`)
+          const finalSessionId = payload?.sessionId || capturedSessionId
+          const finalCount = payload?.count || 0
+          console.log('[SavedSearchesView] Done event - dedup complete:', { finalSessionId, finalCount })
+          setRunningStatus(`Complete: ${finalCount} results (after dedup)`)
+          
+          // Backend has finished deduplication - navigate directly with deduplicated count
+          if (finalSessionId && onSearchComplete) {
+            console.log('[SavedSearchesView] Navigating to results with deduplicated data')
+            // Navigate - component will load deduplicated data from DB
+            onSearchComplete(finalSessionId, search.name)
+          }
         }
       })
-      // Force refresh to get updated data
+      // Refresh runs list after completion (if user navigated back)
       await forceRefresh()
       if (selectedSearch?.id === search.id) {
         await refreshRuns()
@@ -194,47 +308,27 @@ export default function SavedSearchesView({ onNewSearch }) {
     setRunningId(null)
   }
 
-  // ── Run results view ──────────────────────────────────────────────────────
+  // ── Run results view — uses SeededContentView (DB-backed) ───────────────────
   if (selectedRun) {
+    // New architecture: run has a session_id → use SeededContentView
+    if (selectedRun.session_id) {
+      return (
+        <SeededContentView
+          sessionId={selectedRun.session_id}
+          sessionName={selectedSearch?.name}
+          onNewSearch={onNewSearch}
+        />
+      )
+    }
+    // Legacy runs without session_id → load results_json directly and display
     return (
-      <PageShell>
-        <div className="flex flex-col gap-4 p-4">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setSelectedRun(null)}
-              className="flex items-center gap-1 text-xs text-[#5A5650] hover:text-[#1A1815]"
-            >
-              <ChevronLeft className="w-3.5 h-3.5" />
-              Back to runs
-            </button>
-          </div>
-          <div>
-            <h2 className="text-sm font-semibold text-[#1A1815]">{selectedSearch?.name}</h2>
-            <p className="text-[11px] text-[#9A958E]">
-              Run on {formatDate(selectedRun.run_at)} · {selectedRun.results_count} results
-            </p>
-          </div>
-          {runResultsLoading ? (
-            <div className="flex items-center gap-2 text-sm text-[#9A958E]">
-              <Loader2 className="w-4 h-4 animate-spin" /> Loading results…
-            </div>
-          ) : runResults.length === 0 ? (
-            <p className="text-sm text-[#9A958E]">No results for this run.</p>
-          ) : (
-            <FounderTable
-              rows={runResults}
-              selectedIds={new Set()}
-              onToggleSelect={() => {}}
-              onToggleAll={() => {}}
-              onStatusChange={() => {}}
-              onDelete={() => {}}
-              selectable={false}
-              showStatus={false}
-            />
-          )}
-        </div>
-      </PageShell>
+      <LegacyRunResultsView
+        run={selectedRun}
+        searchName={selectedSearch?.name}
+        savedSearchId={selectedSearch?.id}
+        onBack={() => setSelectedRun(null)}
+        onNewSearch={onNewSearch}
+      />
     )
   }
 

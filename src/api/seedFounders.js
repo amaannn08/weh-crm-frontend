@@ -28,7 +28,7 @@ export async function searchFounders(params) {
   const res = await authFetch(routes.seedFounders + '/search', {
     method: 'POST',
     headers: apiHeaders(),
-    body: JSON.stringify({ ...params, save: false })
+    body: JSON.stringify(params)
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
@@ -44,7 +44,7 @@ export async function searchFoundersStream(params, { onEvent, signal } = {}) {
       ...apiHeaders(),
       Accept: 'text/event-stream'
     },
-    body: JSON.stringify({ ...params, save: false }),
+    body: JSON.stringify(params),
     signal
   })
 
@@ -146,6 +146,33 @@ export async function listRecentSearches({ limit = 50, offset = 0 } = {}) {
   const res = await authFetch(`${routes.seedFounders}/recent-searches?${params}`, { headers: apiHeaders() })
   if (!res.ok) throw new Error('Failed to load recent searches')
   return res.json()
+}
+
+// ─── Sessions (new staging layer) ────────────────────────────────────────────
+
+export async function listSessions({ source, limit = 50, offset = 0 } = {}) {
+  const params = new URLSearchParams()
+  if (source) params.set('source', source)
+  params.set('limit', limit)
+  params.set('offset', offset)
+
+  const res = await authFetch(`${routes.seedFounders}/sessions?${params}`, { headers: apiHeaders() })
+  if (!res.ok) throw new Error('Failed to load sessions')
+  return res.json()
+}
+
+export async function listSessionFounders(sessionId, { search, limit = 200, offset = 0 } = {}) {
+  const params = new URLSearchParams()
+  if (search) params.set('search', search)
+  params.set('limit', limit)
+  params.set('offset', offset)
+
+  const key = `seedFounders:sessionFounders:${sessionId}:${params}`
+  return cache.get(key, async () => {
+    const res = await authFetch(`${routes.seedFounders}/sessions/${sessionId}/founders?${params}`, { headers: apiHeaders() })
+    if (!res.ok) throw new Error('Failed to load session founders')
+    return res.json()
+  }, 30_000)
 }
 
 export async function saveBatch(founders) {
@@ -264,6 +291,9 @@ export async function createSavedSearchAndRun(name, params, signal, onProgress =
   // Then immediately trigger the first run with streaming
   try {
     await runSavedSearchNow(saved.id, signal, onProgress)
+    // Invalidate saved searches cache so the list shows updated run count
+    cache.invalidate(SAVED_SEARCHES_CACHE_KEY)
+    localStorage.removeItem(SAVED_SEARCHES_LOCALSTORAGE_KEY)
     return { ...saved, firstRunStarted: true }
   } catch (e) {
     // If run fails, still return the saved search (it was created successfully)
@@ -279,41 +309,60 @@ export async function listSavedSearches() {
     console.log('[API] Using preloaded saved searches data')
     // Return preloaded immediately, fetch fresh in background
     setTimeout(() => {
-      cache.get(SAVED_SEARCHES_CACHE_KEY, async () => {
-        const res = await authFetch(`${routes.seedFounders}/saved-searches`, { headers: apiHeaders() })
-        if (!res.ok) throw new Error('Failed to load saved searches')
-        const data = await res.json()
-        saveToLocalStorage(SAVED_SEARCHES_LOCALSTORAGE_KEY, data)
-        return data
-      }, 300_000).catch(() => {})
+      authFetch(`${routes.seedFounders}/saved-searches`, { headers: apiHeaders() })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (data) {
+            cache.set(SAVED_SEARCHES_CACHE_KEY, data, 300_000)
+            saveToLocalStorage(SAVED_SEARCHES_LOCALSTORAGE_KEY, data)
+          }
+        })
+        .catch(() => {})
     }, 0)
     return preloaded
   }
-  
-  // Try localStorage cache
+
+  // If in-memory cache is still valid, use it (means we just fetched fresh)
+  if (cache.has(SAVED_SEARCHES_CACHE_KEY)) {
+    return cache.get(SAVED_SEARCHES_CACHE_KEY, async () => {
+      const res = await authFetch(`${routes.seedFounders}/saved-searches`, { headers: apiHeaders() })
+      if (!res.ok) throw new Error('Failed to load saved searches')
+      const data = await res.json()
+      saveToLocalStorage(SAVED_SEARCHES_LOCALSTORAGE_KEY, data)
+      return data
+    }, 300_000)
+  }
+
+  // Try localStorage cache only when in-memory is empty
   const cached = loadFromLocalStorage(SAVED_SEARCHES_LOCALSTORAGE_KEY, 5 * 60 * 1000)
   if (cached) {
-    // Return cached data immediately, fetch fresh in background
-    setTimeout(() => {
-      cache.get(SAVED_SEARCHES_CACHE_KEY, async () => {
-        const res = await authFetch(`${routes.seedFounders}/saved-searches`, { headers: apiHeaders() })
-        if (!res.ok) throw new Error('Failed to load saved searches')
-        const data = await res.json()
-        saveToLocalStorage(SAVED_SEARCHES_LOCALSTORAGE_KEY, data)
-        return data
-      }, 300_000).catch(() => {})
-    }, 0)
+    // Warm the in-memory cache and return
+    cache.set(SAVED_SEARCHES_CACHE_KEY, cached, 300_000)
     return cached
   }
-  
-  // No cache, fetch normally
-  return cache.get(SAVED_SEARCHES_CACHE_KEY, async () => {
-    const res = await authFetch(`${routes.seedFounders}/saved-searches`, { headers: apiHeaders() })
-    if (!res.ok) throw new Error('Failed to load saved searches')
-    const data = await res.json()
-    saveToLocalStorage(SAVED_SEARCHES_LOCALSTORAGE_KEY, data)
-    return data
-  }, 300_000)
+
+  // No cache anywhere — fetch fresh
+  const res = await authFetch(`${routes.seedFounders}/saved-searches`, { headers: apiHeaders() })
+  if (!res.ok) throw new Error('Failed to load saved searches')
+  const data = await res.json()
+  cache.set(SAVED_SEARCHES_CACHE_KEY, data, 300_000)
+  saveToLocalStorage(SAVED_SEARCHES_LOCALSTORAGE_KEY, data)
+  return data
+}
+
+/**
+ * Always fetches saved searches directly from the server, bypassing all caches.
+ * Use this for the SavedSearchesView load/refresh to guarantee fresh data.
+ */
+export async function fetchSavedSearchesFresh() {
+  const res = await authFetch(`${routes.seedFounders}/saved-searches`, { headers: apiHeaders() })
+  if (!res.ok) throw new Error('Failed to load saved searches')
+  const data = await res.json()
+  // Update both caches with the fresh data
+  cache.set(SAVED_SEARCHES_CACHE_KEY, data, 300_000)
+  saveToLocalStorage(SAVED_SEARCHES_LOCALSTORAGE_KEY, data)
+  invalidatePreloadedData()
+  return data
 }
 
 export async function deleteSavedSearch(id) {
