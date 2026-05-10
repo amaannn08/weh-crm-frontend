@@ -264,21 +264,22 @@ export default function SavedSearchesView({ onNewSearch, onSearchComplete, onStr
           mergeRows(batchRows)
           setRunningCount(total)
           setRunningStatus(`Found ${total} results...`)
-          // Don't navigate during streaming - wait for dedup to complete
+          // Navigate on first batch to show live streaming
+          if (!hasNavigated && liveRows.length > 0 && capturedSessionId && onSearchComplete) {
+            hasNavigated = true
+            console.log('[SavedSearchesView] Navigating to show live stream')
+            onSearchComplete(capturedSessionId, search.name)
+          }
         } else if (event === 'progress') {
           setRunningStatus(payload?.message || 'Searching...')
         } else if (event === 'done') {
           const finalSessionId = payload?.sessionId || capturedSessionId
           const finalCount = payload?.count || 0
-          console.log('[SavedSearchesView] Done event - dedup complete:', { finalSessionId, finalCount })
+          console.log('[SavedSearchesView] Stream complete and pruning done, navigating to final results')
           setRunningStatus(`Complete: ${finalCount} results (after dedup)`)
           
-          // Backend has finished deduplication - navigate directly with deduplicated count
-          if (finalSessionId && onSearchComplete) {
-            console.log('[SavedSearchesView] Navigating to results with deduplicated data')
-            // Navigate - component will load deduplicated data from DB
-            onSearchComplete(finalSessionId, search.name)
-          }
+          // Backend has finished pruning - safe to navigate immediately
+          onStreamDone?.()
         }
       })
       // Refresh runs list after completion (if user navigated back)

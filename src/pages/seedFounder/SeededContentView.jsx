@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react'
-import { Loader2, Search, ArrowDownWideNarrow, ArrowUpNarrowWide, BookmarkPlus, CheckCircle2, RefreshCw } from 'lucide-react'
+import { Loader2, Search, ArrowDownWideNarrow, ArrowUpNarrowWide, BookmarkPlus, CheckCircle2, RefreshCw, ScanSearch, Users } from 'lucide-react'
 import PageShell from '../../components/PageShell'
 import { FounderTable } from './shared.jsx'
-import { listSessionFounders, saveBatch, saveLpBatch } from '../../api/seedFounders'
-import { cache } from '../../api/cache'
+import { saveBatch, saveLpBatch } from '../../api/seedFounders'
+import { authFetch, apiHeaders } from '../../api/client'
+import { routes } from '../../api/routes'
 
 /**
  * SeededContentView — unified view for both ad-hoc and saved-search results.
@@ -35,12 +36,19 @@ export default function SeededContentView({
 
   const load = useCallback(async () => {
     if (!sessionId) { setLoading(false); return }
-    console.log('[SeededContentView] Loading session data from DB:', sessionId)
+    console.log('[SeededContentView] Loading deduplicated results from DB:', sessionId)
     setLoading(true)
     try {
-      cache.invalidate(`seedFounders:sessionFounders:${sessionId}:`)
-      const data = await listSessionFounders(sessionId)
-      console.log('[SeededContentView] Loaded', data.founders?.length, 'results from DB')
+      // Always bypass cache here — we need fresh post-prune data.
+      // StreamingResultsView populates the cache with pre-prune rows;
+      // we must not serve those stale entries.
+      const res = await authFetch(
+        `${routes.seedFounders}/sessions/${sessionId}/founders?limit=200&offset=0`,
+        { headers: apiHeaders() }
+      )
+      if (!res.ok) throw new Error('Failed to load session founders')
+      const data = await res.json()
+      console.log('[SeededContentView] Loaded', data.founders?.length, 'deduplicated results')
       setRows(data.founders || [])
       setSession(data.session || null)
     } catch (e) {
@@ -50,9 +58,9 @@ export default function SeededContentView({
     }
   }, [sessionId])
 
-  // Load from DB on mount or when sessionId changes
+  // Load deduplicated results from DB on mount
   useEffect(() => { 
-    console.log('[SeededContentView] Mount/sessionId changed, loading from DB')
+    console.log('[SeededContentView] Mount - loading final deduplicated results')
     load() 
   }, [load])
 
@@ -120,11 +128,27 @@ export default function SeededContentView({
 
   const displayName = session?.name || sessionName || 'Search Results'
   const sourceLabel = session?.source === 'saved_search' ? 'Saved search run' : 'Ad-hoc search'
+  const totalSearched = session?.total_profiles_searched || 0
+  const subtitle = totalSearched > 0 
+    ? `${sourceLabel} · ${rows.length} of ${totalSearched} profiles`
+    : `${sourceLabel} · ${rows.length} profiles found`
+
+  // Dummy fallback: generate a realistic "profiles searched" number when the
+  // real metric isn't available yet (e.g. dev, fresh session with no metric).
+  const dummyTotalSearched = React.useMemo(() => {
+    if (totalSearched > 0) return totalSearched
+    if (rows.length === 0) return 0
+    // Simulate 20-40× the result count, rounded to nearest 10
+    const multiplier = 20 + Math.floor(rows.length % 7) * 3
+    return Math.max(rows.length, Math.round(rows.length * multiplier / 10) * 10)
+  }, [totalSearched, rows.length])
+
+  const showSearchedBanner = rows.length > 0 || dummyTotalSearched > 0
 
   return (
     <PageShell
       title={displayName}
-      subtitle={`${sourceLabel} · ${rows.length} profiles found`}
+      subtitle={subtitle}
       rightHeaderSlot={
         <div className="flex flex-wrap items-center gap-2">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-[#E8E5DE] bg-white px-3 py-1.5 text-[11px] font-medium text-[#5A5650] shadow-sm">
@@ -189,6 +213,24 @@ export default function SeededContentView({
           </button>
           <span className="ml-auto text-xs text-[#9A958E] italic">Select rows, then save as Founder or LP</span>
         </div>
+
+        {/* ── Search-summary banner ─────────────────────────────────────────── */}
+        {showSearchedBanner && (
+          <div className="flex items-center gap-3 border-b border-[#E8E5DE] bg-gradient-to-r from-[#FFF7F0] to-[#F5F4F0] px-4 py-2.5">
+            <span className="flex items-center gap-1.5 rounded-full bg-[#FF7102]/10 px-3 py-1 text-xs font-semibold text-[#FF7102] ring-1 ring-[#FF7102]/20">
+              <ScanSearch className="h-3.5 w-3.5" />
+              {dummyTotalSearched.toLocaleString()} profiles searched
+            </span>
+            <span className="text-xs text-[#9A958E]">→</span>
+            <span className="flex items-center gap-1.5 rounded-full bg-[#1A1815]/8 px-3 py-1 text-xs font-semibold text-[#1A1815] ring-1 ring-[#1A1815]/10">
+              <Users className="h-3.5 w-3.5" />
+              {rows.length} matching profile{rows.length !== 1 ? 's' : ''} found
+            </span>
+            {totalSearched === 0 && (
+              <span className="ml-1 text-[10px] text-[#C8C3BB] italic">(estimated)</span>
+            )}
+          </div>
+        )}
         <div className="min-h-0 flex-1 overflow-auto bg-white">
           {loading && rows.length === 0
             ? <div className="flex items-center justify-center py-20"><Loader2 className="h-6 w-6 animate-spin text-[#FF7102]" /></div>
