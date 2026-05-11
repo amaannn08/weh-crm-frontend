@@ -14,12 +14,18 @@ function SeedFounderPage() {
   const handleSearchComplete = useCallback((sessionId, sessionName) => {
     console.log('[SeedFounder] Search started, showing streaming view:', { sessionId, sessionName })
     setActiveSession({ sessionId, sessionName })
-    setView('streaming') // Show streaming view first
+    setView('streaming')
   }, [])
 
   const handleStreamDone = useCallback(() => {
     console.log('[SeedFounder] Stream done - switching to final results')
-    setView('results') // Switch to final deduplicated results
+    setView('results')
+  }, [])
+
+  // Called from RecentSearchesView when a row is clicked
+  const handleViewSession = useCallback((sessionId, sessionName) => {
+    setActiveSession({ sessionId, sessionName })
+    setView('results')
   }, [])
 
   // Streaming view - shows live results as they come in
@@ -32,13 +38,14 @@ function SeedFounderPage() {
     )
   }
 
-  // Final results view - shows deduplicated results after stream completes
+  // Final results view - shows deduplicated results after stream completes,
+  // or historical session results opened from Recent Searches.
   if (view === 'results' && activeSession) {
     return (
       <SeededContentView
         sessionId={activeSession.sessionId}
         sessionName={activeSession.sessionName}
-        onNewSearch={() => { 
+        onNewSearch={() => {
           setActiveSession(null)
           setView('search')
         }}
@@ -58,7 +65,12 @@ function SeedFounderPage() {
   }
 
   if (view === 'recent') {
-    return <RecentSearchesView onNewSearch={() => setView('search')} />
+    return (
+      <RecentSearchesView
+        onNewSearch={() => setView('search')}
+        onViewSession={handleViewSession}
+      />
+    )
   }
 
   if (view === 'savedSearches') {

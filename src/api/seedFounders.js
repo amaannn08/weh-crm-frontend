@@ -175,6 +175,17 @@ export async function listSessionFounders(sessionId, { search, limit = 200, offs
   }, 30_000)
 }
 
+export async function deleteSession(sessionId) {
+  const res = await authFetch(`${routes.seedFounders}/sessions/${sessionId}`, {
+    method: 'DELETE',
+    headers: apiHeaders()
+  })
+  if (!res.ok) throw new Error('Failed to delete session')
+  // Bust the sessions list cache so the table refreshes
+  cache.invalidate('seedFounders:sessions')
+  return res.json()
+}
+
 export async function saveBatch(founders) {
   const res = await authFetch(routes.seedFounders + '/save-batch', {
     method: 'POST',

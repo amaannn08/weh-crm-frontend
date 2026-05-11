@@ -96,14 +96,14 @@ function LegacyRunResultsView({ run, searchName, savedSearchId, onBack, onNewSea
           : rows.length === 0
             ? <p className="px-4 py-10 text-center text-sm text-[#9A958E]">No results for this run.</p>
             : <FounderTable
-                rows={rows}
-                showStatus={false}
-                showDelete={false}
-                selectable={true}
-                selectedIds={selectedIds}
-                onToggleSelect={handleToggleSelect}
-                onToggleAll={handleToggleAll}
-              />
+              rows={rows}
+              showStatus={false}
+              showDelete={false}
+              selectable={true}
+              selectedIds={selectedIds}
+              onToggleSelect={handleToggleSelect}
+              onToggleAll={handleToggleAll}
+            />
         }
       </div>
     </PageShell>
@@ -277,7 +277,7 @@ export default function SavedSearchesView({ onNewSearch, onSearchComplete, onStr
           const finalCount = payload?.count || 0
           console.log('[SavedSearchesView] Stream complete and pruning done, navigating to final results')
           setRunningStatus(`Complete: ${finalCount} results (after dedup)`)
-          
+
           // Backend has finished pruning - safe to navigate immediately
           onStreamDone?.()
         }

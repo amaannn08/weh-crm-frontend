@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react'
-import { Loader2, Search, ArrowDownWideNarrow, ArrowUpNarrowWide, BookmarkPlus, CheckCircle2, RefreshCw, ScanSearch, Users } from 'lucide-react'
+import { Loader2, Search, ArrowDownWideNarrow, ArrowUpNarrowWide, BookmarkPlus, CheckCircle2, RefreshCw, ScanSearch, Users, ArrowLeft } from 'lucide-react'
 import PageShell from '../../components/PageShell'
 import { FounderTable } from './shared.jsx'
 import { saveBatch, saveLpBatch } from '../../api/seedFounders'
@@ -146,7 +146,20 @@ export default function SeededContentView({
   const showSearchedBanner = rows.length > 0 || dummyTotalSearched > 0
 
   return (
-    <PageShell
+    <div className="flex min-h-0 flex-1 flex-col">
+      {onRecentSearches && (
+        <div className="px-1 pt-1 pb-0">
+          <button
+            type="button"
+            onClick={onRecentSearches}
+            className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium text-[#9A958E] hover:text-[#1A1815] hover:bg-[#F5F4F0] transition-colors"
+          >
+            <ArrowLeft className="h-3 w-3" />
+            Back to recent searches
+          </button>
+        </div>
+      )}
+      <PageShell
       title={displayName}
       subtitle={subtitle}
       rightHeaderSlot={
@@ -246,6 +259,7 @@ export default function SeededContentView({
           }
         </div>
       </div>
-    </PageShell>
+      </PageShell>
+    </div>
   )
 }
