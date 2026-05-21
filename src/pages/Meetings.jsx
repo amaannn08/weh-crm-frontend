@@ -4,7 +4,18 @@ import { useDealData } from '../context/DealDataContext'
 import PageShell from '../components/PageShell'
 import AddMeetingModal from '../components/AddMeetingModal'
 import { deleteDealMeeting } from '../api/meetings'
-import { CalendarPlus, Trash2, Plus, CalendarDays } from 'lucide-react'
+import { CalendarPlus, Trash2, Plus, RotateCcw } from 'lucide-react'
+
+// Sort options
+const SORT_OPTIONS = [
+  { value: 'default',    label: 'Default (Active Diligence first)' },
+  { value: 'date_desc',  label: 'Date (Newest first)' },
+  { value: 'date_asc',   label: 'Date (Oldest first)' },
+  { value: 'score_desc', label: 'Score (High to Low)' },
+  { value: 'score_asc',  label: 'Score (Low to High)' },
+]
+
+const DEFAULT_SORT = 'default'
 
 function formatDate(value) {
   if (!value) return ''
@@ -260,7 +271,7 @@ function MeetingsPage() {
   const [error, setError] = useState(null)
   const [search, setSearch] = useState('')
   const [sectorFilter, setSectorFilter] = useState('All sectors')
-  const [sortOrder, setSortOrder] = useState('desc')
+  const [sortBy, setSortBy] = useState(DEFAULT_SORT)
 
   const [showDealPicker, setShowDealPicker] = useState(false)
   const [addMeetingModalDeal, setAddMeetingModalDeal] = useState(null)
@@ -319,16 +330,27 @@ function MeetingsPage() {
       return true
     })
 
+    const getStatus = (m) => (dealsById.get(m.deal_id)?.status || m.status || '')
+    const getScore  = (m) => Number(dealsById.get(m.deal_id)?.founder_final_score ?? m.conviction_score ?? 0)
+    const getDate   = (m) => { const d = m.meeting_date || m.date; return d ? new Date(d).getTime() : -Infinity }
+
     filtered.sort((a, b) => {
-      const da = a.meeting_date || a.date || null
-      const db = b.meeting_date || b.date || null
-      const ta = da ? new Date(da).getTime() : -Infinity
-      const tb = db ? new Date(db).getTime() : -Infinity
-      return sortOrder === 'desc' ? tb - ta : ta - tb
+      if (sortBy === 'default') {
+        const aAD = getStatus(a) === 'Active Diligence'
+        const bAD = getStatus(b) === 'Active Diligence'
+        if (aAD !== bAD) return aAD ? -1 : 1
+        // within same group: newest meeting date first
+        return getDate(b) - getDate(a)
+      }
+      if (sortBy === 'date_desc') return getDate(b) - getDate(a)
+      if (sortBy === 'date_asc')  return getDate(a) - getDate(b)
+      if (sortBy === 'score_desc') return getScore(b) - getScore(a)
+      if (sortBy === 'score_asc')  return getScore(a) - getScore(b)
+      return 0
     })
 
     return filtered
-  }, [meetings, search, sectorFilter, sortOrder])
+  }, [meetings, search, sectorFilter, sortBy, dealsById])
 
   const summaryChips = useMemo(() => {
     const total = filteredMeetings.length
@@ -445,15 +467,26 @@ function MeetingsPage() {
                   </option>
                 ))}
               </select>
-              <button
-                type="button"
-                title="Sort by meeting date"
-                onClick={() => setSortOrder((o) => (o === 'desc' ? 'asc' : 'desc'))}
-                className="flex items-center gap-1.5 whitespace-nowrap rounded-xl border border-[#FF7102] bg-[#FFEFE2] px-3 py-2 text-xs font-medium text-[#FF7102] transition-colors"
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="rounded-xl border border-[#E8E5DE] bg-white px-2 py-1.5 text-sm text-[#1A1815] focus:border-[#FF7102] focus:outline-none"
               >
-                <CalendarDays className="h-3.5 w-3.5" />
-                Date {sortOrder === 'desc' ? '↓' : '↑'}
-              </button>
+                {SORT_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+              {sortBy !== DEFAULT_SORT && (
+                <button
+                  type="button"
+                  title="Reset to default sort"
+                  onClick={() => setSortBy(DEFAULT_SORT)}
+                  className="flex items-center gap-1 whitespace-nowrap rounded-xl border border-[#E8E5DE] bg-white px-3 py-1.5 text-xs font-medium text-[#5A5650] hover:border-[#FF7102] hover:text-[#FF7102] transition-colors"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Reset
+                </button>
+              )}
             </div>
           </div>
 
