@@ -93,7 +93,7 @@ export async function searchFoundersStream(params, { onEvent, signal } = {}) {
   return donePayload
 }
 
-export async function listFounders({ search, stage, status, limit = 200, offset = 0 } = {}) {
+export async function listFounders({ search, stage, status, limit = 500, offset = 0 } = {}) {
   // If no filters, use preloaded data for instant load
   if (!search && (!stage || stage === 'All stages') && (!status || status === 'All') && offset === 0) {
     const preloaded = getPreloadedFounders()

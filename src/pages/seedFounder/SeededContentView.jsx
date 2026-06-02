@@ -74,7 +74,7 @@ export default function SeededContentView({
   }
 
   const handleToggleAll = (checked) => {
-    if (checked) setSelectedIds(new Set(filtered.map(r => r.linkedin_id || r.id)))
+    if (checked) setSelectedIds(new Set(filtered.map(r => r.linkedin_id || r.id || r.linkedin_url)))
     else setSelectedIds(new Set())
   }
 
@@ -93,7 +93,7 @@ export default function SeededContentView({
   }, [filtered])
 
   const selectedRows = useMemo(
-    () => rows.filter(r => selectedIds.has(r.linkedin_id || r.id)),
+    () => rows.filter(r => selectedIds.has(r.linkedin_id || r.id || r.linkedin_url)),
     [rows, selectedIds]
   )
 
@@ -214,7 +214,7 @@ export default function SeededContentView({
         </div>
       }
     >
-      <div className="flex h-full flex-col">
+      <div className="flex min-h-0 flex-1 flex-col">
         <div className="border-b border-[#E8E5DE] bg-[#FAFAF8] px-3 py-2 flex flex-wrap items-center gap-2">
           <input type="text" placeholder="Filter by name, company, location…" value={search}
             onChange={e => setSearch(e.target.value)}

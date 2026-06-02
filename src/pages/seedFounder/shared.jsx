@@ -150,13 +150,16 @@ export function FounderTable({ rows, onStatusChange, onDelete, showStatus = true
       <tbody>
         {rows.length === 0
           ? <tr><td colSpan={showDelete ? 11 : 10} className="px-4 py-10 text-center text-xs text-[#9A958E]">No profiles found.</td></tr>
-          : rows.map((row, i) => (
-            <FounderRow key={row.id || row.linkedin_id || i} row={row} rank={i + 1}
-              onStatusChange={onStatusChange} onDelete={onDelete}
-              showStatus={showStatus} showDelete={showDelete}
-              selectable={selectable} selected={selectedIds?.has(row.linkedin_id)}
-              onToggleSelect={checked => onToggleSelect?.(row.linkedin_id, checked)} />
-          ))
+          : rows.map((row, i) => {
+            const rowId = row.linkedin_id || row.id || row.linkedin_url
+            return (
+              <FounderRow key={rowId || i} row={row} rank={i + 1}
+                onStatusChange={onStatusChange} onDelete={onDelete}
+                showStatus={showStatus} showDelete={showDelete}
+                selectable={selectable} selected={selectedIds?.has(rowId)}
+                onToggleSelect={checked => onToggleSelect?.(rowId, checked)} />
+            )
+          })
         }
       </tbody>
     </table>

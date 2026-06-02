@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react'
 import { getToken, setToken as persistToken, clearToken } from '../auth'
 import { cache } from '../api/cache'
 import { clearSessionSnapshot, getUserKeyFromToken } from '../utils/sessionCache'
+import { clearPreloadedData } from '../utils/dataPreloader'
 
 const AuthContext = createContext(null)
 
@@ -17,6 +18,7 @@ export function AuthProvider({ children }) {
   const login = (newToken) => {
     persistToken(newToken)
     setTokenState(newToken)
+    clearPreloadedData()
     setAuthResolved(true)
   }
 
@@ -25,6 +27,7 @@ export function AuthProvider({ children }) {
     clearToken()
     cache.clear()
     clearSessionSnapshot(userKey)
+    clearPreloadedData()
     setTokenState(null)
     setAuthResolved(true)
   }

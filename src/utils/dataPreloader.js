@@ -68,7 +68,7 @@ export async function preloadSeedFounderData() {
   try {
     // Load all data in parallel
     const [founders, lps, savedSearches] = await Promise.allSettled([
-      listFounders({ limit: 500 }),
+      listFounders({}),
       listLps({ limit: 500 }),
       listSavedSearches()
     ])
@@ -121,11 +121,16 @@ export function getPreloadedSavedSearches() {
 }
 
 /**
- * Invalidate preloaded data (force refresh on next load)
+ * Invalidate preloaded data (force refresh on next load).
+ * Clears both the timestamp AND the cached data so stale entries
+ * are not served while new data is being fetched.
  */
 export function invalidatePreloadedData() {
   localStorage.removeItem(PRELOAD_KEYS.LAST_PRELOAD)
-  console.log('[Preloader] Data invalidated, will refresh on next preload')
+  localStorage.removeItem(PRELOAD_KEYS.FOUNDERS)
+  localStorage.removeItem(PRELOAD_KEYS.LPS)
+  localStorage.removeItem(PRELOAD_KEYS.SAVED_SEARCHES)
+  console.log('[Preloader] Data invalidated and cleared, will fetch fresh on next load')
 }
 
 /**

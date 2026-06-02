@@ -33,13 +33,14 @@ function LegacyRunResultsView({ run, searchName, savedSearchId, onBack, onNewSea
       .finally(() => setLoading(false))
   }, [savedSearchId, run?.id])
 
-  const selectedRows = rows.filter(r => selectedIds.has(r.linkedin_id || r.linkedin_url))
+  const rowKey = r => r.linkedin_id || r.id || r.linkedin_url
+  const selectedRows = rows.filter(r => selectedIds.has(rowKey(r)))
 
   const handleToggleSelect = (id, checked) => {
     setSelectedIds(prev => { const n = new Set(prev); checked ? n.add(id) : n.delete(id); return n })
   }
   const handleToggleAll = (checked) => {
-    setSelectedIds(checked ? new Set(rows.map(r => r.linkedin_id || r.linkedin_url)) : new Set())
+    setSelectedIds(checked ? new Set(rows.map(rowKey)) : new Set())
   }
 
   const handleSaveFounders = async () => {
@@ -115,6 +116,22 @@ function formatDate(ts) {
   return new Date(ts).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
+function ExpandablePill({ text }) {
+  const [expanded, setExpanded] = useState(false)
+  if (!text) return null
+
+  return (
+    <span
+      onClick={(e) => { e.stopPropagation(); setExpanded(!expanded) }}
+      className={`inline-block cursor-pointer rounded-lg border border-[#E8E5DE] bg-[#F5F4F0] px-2.5 py-1 text-[11px] text-[#5A5650] transition-all
+        ${expanded ? 'whitespace-normal break-words' : 'max-w-[250px] truncate'}`}
+      title={expanded ? "Click to collapse" : "Click to expand"}
+    >
+      {text}
+    </span>
+  )
+}
+
 function ParamPills({ params = {} }) {
   const chips = []
   if (params.query) chips.push(params.query)
@@ -124,11 +141,9 @@ function ParamPills({ params = {} }) {
   if (params.backgrounds?.length) chips.push(...params.backgrounds.slice(0, 3))
   if (!chips.length) chips.push('Founder search')
   return (
-    <div className="flex flex-wrap gap-1 mt-1">
+    <div className="flex flex-wrap gap-1.5 mt-1.5">
       {chips.map((c, i) => (
-        <span key={i} className="rounded-full border border-[#E8E5DE] bg-[#F5F4F0] px-2 py-0.5 text-[10px] text-[#5A5650]">
-          {c}
-        </span>
+        <ExpandablePill key={i} text={c} />
       ))}
     </div>
   )
@@ -337,6 +352,7 @@ export default function SavedSearchesView({ onNewSearch, onSearchComplete, onStr
   if (selectedSearch) {
     return (
       <PageShell>
+        <div className="min-h-0 flex-1 overflow-auto">
         <div className="flex flex-col gap-4 p-4">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
@@ -423,6 +439,7 @@ export default function SavedSearchesView({ onNewSearch, onSearchComplete, onStr
             </div>
           )}
         </div>
+        </div>
       </PageShell>
     )
   }
@@ -430,6 +447,7 @@ export default function SavedSearchesView({ onNewSearch, onSearchComplete, onStr
   // ── Saved searches list ───────────────────────────────────────────────────
   return (
     <PageShell>
+      <div className="min-h-0 flex-1 overflow-auto">
       <div className="flex flex-col gap-4 p-4">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
@@ -466,11 +484,11 @@ export default function SavedSearchesView({ onNewSearch, onSearchComplete, onStr
             <p className="text-[11px] text-[#9A958E] mt-1">Run a search and click "Save search" to schedule it weekly.</p>
           </div>
         ) : (
-          <div className="rounded-2xl border border-[#E8E5DE] bg-white overflow-hidden">
+          <div className="rounded-2xl border border-[#E8E5DE] bg-white overflow-hidden shadow-sm">
             {savedSearches.map((s, i) => (
               <div
                 key={s.id}
-                className={`flex items-center justify-between gap-3 px-4 py-3 ${i > 0 ? 'border-t border-[#E8E5DE]' : ''}`}
+                className={`flex items-start justify-between gap-4 px-5 py-4 transition-colors hover:bg-[#FAFAF8] ${i > 0 ? 'border-t border-[#E8E5DE]' : ''}`}
               >
                 <div className="flex-1 min-w-0">
                   {editingId === s.id ? (
@@ -530,6 +548,7 @@ export default function SavedSearchesView({ onNewSearch, onSearchComplete, onStr
             ))}
           </div>
         )}
+      </div>
       </div>
     </PageShell>
   )
