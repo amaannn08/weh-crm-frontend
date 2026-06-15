@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { Loader2, Search, ExternalLink, RefreshCw, Trash2 } from 'lucide-react'
 import PageShell from '../../components/PageShell'
-import { listSessions, deleteSession } from '../../api/seedFounders'
+import { listSessions, fetchSessionsFresh, deleteSession } from '../../api/seedFounders'
 
 function fmt(ts) {
   if (!ts) return '—'
@@ -31,11 +31,11 @@ export default function RecentSearchesView({ onNewSearch, onViewSession }) {
   const [deletingId, setDeletingId] = useState(null)  // row being deleted
   const [confirmId, setConfirmId]   = useState(null)  // row awaiting confirm
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (force = false) => {
     setLoading(true)
     setError(null)
     try {
-      const data = await listSessions({ limit: 100 })
+      const data = force ? await fetchSessionsFresh({ limit: 100 }) : await listSessions({ limit: 100 })
       setRows(data.sessions || [])
     } catch (e) {
       setError(e.message)
@@ -99,7 +99,7 @@ export default function RecentSearchesView({ onNewSearch, onViewSession }) {
       subtitle="All seeding runs with status and result counts. Click a row to view its results."
       rightHeaderSlot={
         <div className="flex items-center gap-2">
-          <button type="button" onClick={load}
+          <button type="button" onClick={() => load(true)}
             className="inline-flex items-center gap-1.5 rounded-full border border-[#E8E5DE] bg-white px-3 py-1.5 text-xs font-semibold text-[#5A5650] hover:bg-[#FAFAF8] transition-colors">
             <RefreshCw className="h-3 w-3" /> Refresh
           </button>

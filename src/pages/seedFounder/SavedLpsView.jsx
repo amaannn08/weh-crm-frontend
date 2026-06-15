@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { ArrowDownWideNarrow, ArrowUpNarrowWide, Loader2, Search } from 'lucide-react'
 import PageShell from '../../components/PageShell'
 import { FounderTable } from './shared.jsx'
-import { deleteLp, listLps } from '../../api/seedFounders'
+import { deleteLp, listLps, fetchLpsFresh } from '../../api/seedFounders'
 
 export default function SavedLpsView({ onNewSearch }) {
   const [rows, setRows] = useState([])
@@ -10,10 +10,10 @@ export default function SavedLpsView({ onNewSearch }) {
   const [search, setSearch] = useState('')
   const [sortDir, setSortDir] = useState('desc')
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (force = false) => {
     setLoading(true)
     try {
-      const data = await listLps({})
+      const data = force ? await fetchLpsFresh({}) : await listLps({})
       setRows(data.lps || [])
     } finally {
       setLoading(false)
@@ -53,6 +53,10 @@ export default function SavedLpsView({ onNewSearch }) {
           <span className="inline-flex items-center gap-1.5 rounded-full border border-[#E8E5DE] bg-white px-3 py-1.5 text-[11px] font-medium text-[#5A5650] shadow-sm">
             Avg ICP <span className="font-semibold text-[#1A1815]">{avgScore}</span>
           </span>
+          <button type="button" onClick={() => load(true)}
+            className="inline-flex items-center gap-1.5 rounded-full border border-[#E8E5DE] bg-white px-3 py-1.5 text-xs font-semibold text-[#1A1815] hover:bg-[#F5F4F0] transition-colors shadow-sm">
+            Reload
+          </button>
           <button type="button" onClick={onNewSearch}
             className="inline-flex items-center gap-1.5 rounded-full bg-[#1A1815] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#333] transition-colors">
             <Search className="h-3 w-3" /> New search

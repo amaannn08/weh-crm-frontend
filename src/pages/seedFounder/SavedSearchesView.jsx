@@ -116,6 +116,17 @@ function formatDate(ts) {
   return new Date(ts).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
+// Compute next run client-side: last_run_at + 7d, bumped until future
+function formatNextRun(s) {
+  const base = s.last_run_at || s.created_at
+  if (!base) return '—'
+  const next = new Date(base)
+  next.setDate(next.getDate() + 7)
+  const now = new Date()
+  while (next < now) next.setDate(next.getDate() + 7)
+  return next.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
 function ExpandablePill({ text }) {
   const [expanded, setExpanded] = useState(false)
   if (!text) return null
@@ -169,11 +180,10 @@ export default function SavedSearchesView({ onNewSearch, onSearchComplete, onStr
   const [editingName, setEditingName] = useState('')
   const [savingName, setSavingName] = useState(false)
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (force = false) => {
     setLoading(true)
     try {
-      // Always fetch fresh from server — bypass all caches
-      const data = await fetchSavedSearchesFresh()
+      const data = force ? await fetchSavedSearchesFresh() : await listSavedSearches()
       setSavedSearches(data.savedSearches || [])
     } finally {
       setLoading(false)
@@ -181,7 +191,7 @@ export default function SavedSearchesView({ onNewSearch, onSearchComplete, onStr
   }, [])
 
   const forceRefresh = useCallback(async () => {
-    await load()
+    await load(true)
   }, [load])
 
   useEffect(() => { load() }, [load])
@@ -353,92 +363,92 @@ export default function SavedSearchesView({ onNewSearch, onSearchComplete, onStr
     return (
       <PageShell>
         <div className="min-h-0 flex-1 overflow-auto">
-        <div className="flex flex-col gap-4 p-4">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setSelectedSearch(null)}
-                className="flex items-center gap-1 text-xs text-[#5A5650] hover:text-[#1A1815]"
-              >
-                <ChevronLeft className="w-3.5 h-3.5" />
-                Back to saved searches
-              </button>
-              <button
-                type="button"
-                onClick={refreshRuns}
-                disabled={runsLoading}
-                title="Refresh runs"
-                className="rounded-full border border-[#E8E5DE] bg-white p-1.5 text-[#5A5650] hover:bg-[#F5F4F0] disabled:opacity-60"
-              >
-                <RefreshCw className={`w-3 h-3 ${runsLoading ? 'animate-spin' : ''}`} />
-              </button>
-            </div>
-            <div className="flex items-center gap-2">
-              {runningId === selectedSearch.id && (
+          <div className="flex flex-col gap-4 p-4">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={handleStopRun}
-                  className="flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100"
+                  onClick={() => setSelectedSearch(null)}
+                  className="flex items-center gap-1 text-xs text-[#5A5650] hover:text-[#1A1815]"
                 >
-                  Stop
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                  Back to saved searches
                 </button>
-              )}
-              <button
-                type="button"
-                onClick={() => handleRunNow(selectedSearch)}
-                disabled={!!runningId}
-                className="flex items-center gap-1.5 rounded-full bg-[#1A1815] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#2d2a26] disabled:opacity-60"
-              >
-                {runningId === selectedSearch.id
-                  ? <><Loader2 className="w-3 h-3 animate-spin" /> Running…</>
-                  : <><Play className="w-3 h-3" /> Run now</>}
-              </button>
-            </div>
-          </div>
-
-          {runningId === selectedSearch.id && runningStatus && (
-            <div className="rounded-xl border border-[#FFD0AB] bg-[#FFEFE2] px-4 py-2">
-              <p className="text-xs text-[#C85A1A]">{runningStatus}</p>
-              {runningCount > 0 && (
-                <p className="text-[11px] text-[#9A958E] mt-0.5">Live results: {runningCount}</p>
-              )}
-            </div>
-          )}
-
-          <div>
-            <h2 className="text-sm font-semibold text-[#1A1815]">{selectedSearch.name}</h2>
-            <ParamPills params={selectedSearch.params_json} />
-            <p className="text-[11px] text-[#9A958E] mt-1">
-              Next scheduled run: {formatDate(selectedSearch.next_run_at)}
-            </p>
-          </div>
-
-          {runsLoading ? (
-            <div className="flex items-center gap-2 text-sm text-[#9A958E]">
-              <Loader2 className="w-4 h-4 animate-spin" /> Loading runs…
-            </div>
-          ) : runs.length === 0 ? (
-            <p className="text-sm text-[#9A958E]">No runs yet. Hit "Run now" to get the first batch.</p>
-          ) : (
-            <div className="rounded-2xl border border-[#E8E5DE] bg-white overflow-hidden">
-              {runs.map((run, i) => (
                 <button
-                  key={run.id}
                   type="button"
-                  onClick={() => handleSelectRun(run)}
-                  className={`w-full flex items-center justify-between px-4 py-3 text-left hover:bg-[#FAFAF8] transition-colors ${i > 0 ? 'border-t border-[#E8E5DE]' : ''}`}
+                  onClick={refreshRuns}
+                  disabled={runsLoading}
+                  title="Refresh runs"
+                  className="rounded-full border border-[#E8E5DE] bg-white p-1.5 text-[#5A5650] hover:bg-[#F5F4F0] disabled:opacity-60"
                 >
-                  <div>
-                    <p className="text-sm font-medium text-[#1A1815]">{formatDate(run.run_at)}</p>
-                    <p className="text-[11px] text-[#9A958E]">{run.results_count} founders found</p>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-[#9A958E]" />
+                  <RefreshCw className={`w-3 h-3 ${runsLoading ? 'animate-spin' : ''}`} />
                 </button>
-              ))}
+              </div>
+              <div className="flex items-center gap-2">
+                {runningId === selectedSearch.id && (
+                  <button
+                    type="button"
+                    onClick={handleStopRun}
+                    className="flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100"
+                  >
+                    Stop
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => handleRunNow(selectedSearch)}
+                  disabled={!!runningId}
+                  className="flex items-center gap-1.5 rounded-full bg-[#1A1815] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#2d2a26] disabled:opacity-60"
+                >
+                  {runningId === selectedSearch.id
+                    ? <><Loader2 className="w-3 h-3 animate-spin" /> Running…</>
+                    : <><Play className="w-3 h-3" /> Run now</>}
+                </button>
+              </div>
             </div>
-          )}
-        </div>
+
+            {runningId === selectedSearch.id && runningStatus && (
+              <div className="rounded-xl border border-[#FFD0AB] bg-[#FFEFE2] px-4 py-2">
+                <p className="text-xs text-[#C85A1A]">{runningStatus}</p>
+                {runningCount > 0 && (
+                  <p className="text-[11px] text-[#9A958E] mt-0.5">Live results: {runningCount}</p>
+                )}
+              </div>
+            )}
+
+            <div>
+              {/* <h2 className="text-sm text-red-300 font-semibold text-[#1A1815]">{selectedSearch.name}</h2> */}
+              <ParamPills params={selectedSearch.params_json} />
+              <p className="text-[11px] text-[#9A958E] mt-1">
+                Next scheduled run: {formatNextRun(selectedSearch)}
+              </p>
+            </div>
+
+            {runsLoading ? (
+              <div className="flex items-center gap-2 text-sm text-[#9A958E]">
+                <Loader2 className="w-4 h-4 animate-spin" /> Loading runs…
+              </div>
+            ) : runs.length === 0 ? (
+              <p className="text-sm text-[#9A958E]">No runs yet. Hit "Run now" to get the first batch.</p>
+            ) : (
+              <div className="rounded-2xl border border-[#E8E5DE] bg-white overflow-hidden">
+                {runs.map((run, i) => (
+                  <button
+                    key={run.id}
+                    type="button"
+                    onClick={() => handleSelectRun(run)}
+                    className={`w-full flex items-center justify-between px-4 py-3 text-left hover:bg-[#FAFAF8] transition-colors ${i > 0 ? 'border-t border-[#E8E5DE]' : ''}`}
+                  >
+                    <div>
+                      <p className="text-sm font-medium text-[#1A1815]">{formatDate(run.run_at)}</p>
+                      <p className="text-[11px] text-[#9A958E]">{run.results_count} founders found</p>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-[#9A958E]" />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </PageShell>
     )
@@ -448,107 +458,107 @@ export default function SavedSearchesView({ onNewSearch, onSearchComplete, onStr
   return (
     <PageShell>
       <div className="min-h-0 flex-1 overflow-auto">
-      <div className="flex flex-col gap-4 p-4">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <h1 className="text-base font-semibold text-[#1A1815]">Saved Searches</h1>
+        <div className="flex flex-col gap-4 p-4">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <h1 className="text-base font-semibold text-[#1A1815]">Saved Searches</h1>
+              <button
+                type="button"
+                onClick={forceRefresh}
+                disabled={loading}
+                title="Refresh"
+                className="rounded-full border border-[#E8E5DE] bg-white p-1.5 text-[#5A5650] hover:bg-[#F5F4F0] disabled:opacity-60"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
             <button
               type="button"
-              onClick={forceRefresh}
-              disabled={loading}
-              title="Refresh"
-              className="rounded-full border border-[#E8E5DE] bg-white p-1.5 text-[#5A5650] hover:bg-[#F5F4F0] disabled:opacity-60"
+              onClick={onNewSearch}
+              className="rounded-full border border-[#E8E5DE] bg-white px-3 py-1 text-xs font-medium text-[#5A5650] hover:bg-[#F5F4F0]"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+              + New search
             </button>
           </div>
-          <button
-            type="button"
-            onClick={onNewSearch}
-            className="rounded-full border border-[#E8E5DE] bg-white px-3 py-1 text-xs font-medium text-[#5A5650] hover:bg-[#F5F4F0]"
-          >
-            + New search
-          </button>
-        </div>
-        <p className="text-[11px] text-[#9A958E] -mt-2">
-          Saved searches run automatically every week and store results per run.
-        </p>
+          <p className="text-[11px] text-[#9A958E] -mt-2">
+            Saved searches run automatically every week and store results per run.
+          </p>
 
-        {loading ? (
-          <div className="flex items-center gap-2 text-sm text-[#9A958E]">
-            <Loader2 className="w-4 h-4 animate-spin" /> Loading…
-          </div>
-        ) : savedSearches.length === 0 ? (
-          <div className="rounded-2xl border border-[#E8E5DE] bg-white p-6 text-center">
-            <p className="text-sm text-[#9A958E]">No saved searches yet.</p>
-            <p className="text-[11px] text-[#9A958E] mt-1">Run a search and click "Save search" to schedule it weekly.</p>
-          </div>
-        ) : (
-          <div className="rounded-2xl border border-[#E8E5DE] bg-white overflow-hidden shadow-sm">
-            {savedSearches.map((s, i) => (
-              <div
-                key={s.id}
-                className={`flex items-start justify-between gap-4 px-5 py-4 transition-colors hover:bg-[#FAFAF8] ${i > 0 ? 'border-t border-[#E8E5DE]' : ''}`}
-              >
-                <div className="flex-1 min-w-0">
-                  {editingId === s.id ? (
-                    <input
-                      autoFocus
-                      value={editingName}
-                      onChange={e => setEditingName(e.target.value)}
-                      onKeyDown={e => { if (e.key === 'Enter') handleSaveName(s.id); if (e.key === 'Escape') setEditingId(null) }}
-                      className="w-full rounded-lg border border-[#FF7102] bg-white px-2 py-1 text-sm text-[#1A1815] focus:outline-none"
-                    />
-                  ) : (
-                    <button type="button" onClick={() => handleSelectSearch(s)} className="w-full text-left">
-                      <p className="text-sm font-medium text-[#1A1815] truncate">{s.name}</p>
-                    </button>
-                  )}
-                  <ParamPills params={s.params_json} />
-                  <p className="text-[11px] text-[#9A958E] mt-1">
-                    {s.run_count} run{s.run_count !== 1 ? 's' : ''} · Last: {formatDate(s.last_run_at)} · Next: {formatDate(s.next_run_at)}
-                  </p>
-                </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  {editingId === s.id ? (
-                    <>
-                      <button type="button" onClick={() => handleSaveName(s.id)} disabled={savingName} title="Save"
-                        className="rounded-full border border-emerald-200 bg-emerald-50 p-1.5 text-emerald-600 hover:bg-emerald-100 disabled:opacity-60">
-                        <Check className="w-3.5 h-3.5" />
+          {loading ? (
+            <div className="flex items-center gap-2 text-sm text-[#9A958E]">
+              <Loader2 className="w-4 h-4 animate-spin" /> Loading…
+            </div>
+          ) : savedSearches.length === 0 ? (
+            <div className="rounded-2xl border border-[#E8E5DE] bg-white p-6 text-center">
+              <p className="text-sm text-[#9A958E]">No saved searches yet.</p>
+              <p className="text-[11px] text-[#9A958E] mt-1">Run a search and click "Save search" to schedule it weekly.</p>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-[#E8E5DE] bg-white overflow-hidden shadow-sm">
+              {savedSearches.map((s, i) => (
+                <div
+                  key={s.id}
+                  className={`flex items-start justify-between gap-4 px-5 py-4 transition-colors hover:bg-[#FAFAF8] ${i > 0 ? 'border-t border-[#E8E5DE]' : ''}`}
+                >
+                  <div className="flex-1 min-w-0">
+                    {editingId === s.id ? (
+                      <input
+                        autoFocus
+                        value={editingName}
+                        onChange={e => setEditingName(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') handleSaveName(s.id); if (e.key === 'Escape') setEditingId(null) }}
+                        className="w-full rounded-lg border border-[#FF7102] bg-white px-2 py-1 text-sm text-[#1A1815] focus:outline-none"
+                      />
+                    ) : (
+                      <button type="button" onClick={() => handleSelectSearch(s)} className="w-full text-left">
+                        <p className="text-sm font-medium text-[#1A1815] truncate">{s.name}</p>
                       </button>
-                      <button type="button" onClick={() => setEditingId(null)} title="Cancel"
-                        className="rounded-full border border-[#E8E5DE] bg-white p-1.5 text-[#5A5650] hover:bg-[#F5F4F0]">
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button type="button" onClick={() => handleStartEdit(s)} title="Rename"
-                        className="rounded-full border border-[#E8E5DE] bg-white p-1.5 text-[#5A5650] hover:bg-[#F5F4F0]">
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                      <button type="button" onClick={() => handleRunNow(s)} disabled={!!runningId} title="Run now"
-                        className="rounded-full border border-[#E8E5DE] bg-white p-1.5 text-[#5A5650] hover:bg-[#F5F4F0] disabled:opacity-60">
-                        {runningId === s.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-                      </button>
-                      {runningId === s.id && (
-                        <button type="button" onClick={handleStopRun} title="Stop"
-                          className="rounded-full border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-medium text-red-600 hover:bg-red-100">
-                          Stop
+                    )}
+                    <ParamPills params={s.params_json} />
+                    <p className="text-[11px] text-[#9A958E] mt-1">
+                      {s.run_count} run{s.run_count !== 1 ? 's' : ''} · Last: {formatDate(s.last_run_at)} · Next: {formatNextRun(s)}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {editingId === s.id ? (
+                      <>
+                        <button type="button" onClick={() => handleSaveName(s.id)} disabled={savingName} title="Save"
+                          className="rounded-full border border-emerald-200 bg-emerald-50 p-1.5 text-emerald-600 hover:bg-emerald-100 disabled:opacity-60">
+                          <Check className="w-3.5 h-3.5" />
                         </button>
-                      )}
-                      <button type="button" onClick={() => handleDelete(s.id)} disabled={deletingId === s.id} title="Delete"
-                        className="rounded-full border border-[#E8E5DE] bg-white p-1.5 text-[#5A5650] hover:bg-red-50 hover:border-red-200 hover:text-red-600 disabled:opacity-60">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </>
-                  )}
+                        <button type="button" onClick={() => setEditingId(null)} title="Cancel"
+                          className="rounded-full border border-[#E8E5DE] bg-white p-1.5 text-[#5A5650] hover:bg-[#F5F4F0]">
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button type="button" onClick={() => handleStartEdit(s)} title="Rename"
+                          className="rounded-full border border-[#E8E5DE] bg-white p-1.5 text-[#5A5650] hover:bg-[#F5F4F0]">
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button type="button" onClick={() => handleRunNow(s)} disabled={!!runningId} title="Run now"
+                          className="rounded-full border border-[#E8E5DE] bg-white p-1.5 text-[#5A5650] hover:bg-[#F5F4F0] disabled:opacity-60">
+                          {runningId === s.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                        </button>
+                        {runningId === s.id && (
+                          <button type="button" onClick={handleStopRun} title="Stop"
+                            className="rounded-full border border-red-200 bg-red-50 px-2 py-1 text-[11px] font-medium text-red-600 hover:bg-red-100">
+                            Stop
+                          </button>
+                        )}
+                        <button type="button" onClick={() => handleDelete(s.id)} disabled={deletingId === s.id} title="Delete"
+                          className="rounded-full border border-[#E8E5DE] bg-white p-1.5 text-[#5A5650] hover:bg-red-50 hover:border-red-200 hover:text-red-600 disabled:opacity-60">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </PageShell>
   )

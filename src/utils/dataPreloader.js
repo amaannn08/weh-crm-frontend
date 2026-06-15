@@ -9,6 +9,7 @@ const PRELOAD_KEYS = {
   FOUNDERS: 'seedFounders:preload:founders',
   LPS: 'seedFounders:preload:lps',
   SAVED_SEARCHES: 'seedFounders:preload:savedSearches',
+  SESSIONS: 'seedFounders:preload:sessions',
   LAST_PRELOAD: 'seedFounders:preload:timestamp'
 }
 
@@ -49,7 +50,7 @@ function loadFromStorage(key) {
 function shouldPreload() {
   const lastPreload = localStorage.getItem(PRELOAD_KEYS.LAST_PRELOAD)
   if (!lastPreload) return true
-  
+
   const elapsed = Date.now() - parseInt(lastPreload, 10)
   return elapsed > PRELOAD_INTERVAL
 }
@@ -64,13 +65,14 @@ export async function preloadSeedFounderData() {
   }
 
   console.log('[Preloader] Starting data preload...')
-  
+
   try {
     // Load all data in parallel
-    const [founders, lps, savedSearches] = await Promise.allSettled([
+    const [founders, lps, savedSearches, sessions] = await Promise.allSettled([
       listFounders({}),
       listLps({ limit: 500 }),
-      listSavedSearches()
+      listSavedSearches(),
+      listSessions({ limit: 100 })
     ])
 
     // Save founders
@@ -89,6 +91,12 @@ export async function preloadSeedFounderData() {
     if (savedSearches.status === 'fulfilled') {
       saveToStorage(PRELOAD_KEYS.SAVED_SEARCHES, savedSearches.value)
       console.log('[Preloader] Saved searches:', savedSearches.value?.savedSearches?.length || 0)
+    }
+
+    // Save sessions (recent searches)
+    if (sessions.status === 'fulfilled') {
+      saveToStorage(PRELOAD_KEYS.SESSIONS, sessions.value)
+      console.log('[Preloader] Saved sessions:', sessions.value?.sessions?.length || 0)
     }
 
     // Update last preload timestamp
@@ -121,6 +129,13 @@ export function getPreloadedSavedSearches() {
 }
 
 /**
+ * Get preloaded sessions (instant, no API call)
+ */
+export function getPreloadedSessions() {
+  return loadFromStorage(PRELOAD_KEYS.SESSIONS)
+}
+
+/**
  * Invalidate preloaded data (force refresh on next load).
  * Clears both the timestamp AND the cached data so stale entries
  * are not served while new data is being fetched.
@@ -130,6 +145,7 @@ export function invalidatePreloadedData() {
   localStorage.removeItem(PRELOAD_KEYS.FOUNDERS)
   localStorage.removeItem(PRELOAD_KEYS.LPS)
   localStorage.removeItem(PRELOAD_KEYS.SAVED_SEARCHES)
+  localStorage.removeItem(PRELOAD_KEYS.SESSIONS)
   console.log('[Preloader] Data invalidated and cleared, will fetch fresh on next load')
 }
 

@@ -1,7 +1,7 @@
 import { routes } from './routes'
 import { apiHeaders, authFetch } from './client'
 import { cache } from './cache'
-import { getPreloadedFounders, getPreloadedLps, getPreloadedSavedSearches, invalidatePreloadedData } from '../utils/dataPreloader'
+import { getPreloadedFounders, getPreloadedLps, getPreloadedSavedSearches, getPreloadedSessions, invalidatePreloadedData } from '../utils/dataPreloader'
 
 const CACHE_KEY = 'seedFounders:list'
 
@@ -118,6 +118,25 @@ export async function listFounders({ search, stage, status, limit = 500, offset 
   }, 60_000)
 }
 
+/**
+ * Always fetches founders directly from the server, bypassing all caches.
+ * Use this for the SavedFoundersView manual reload.
+ */
+export async function fetchFoundersFresh({ limit = 500, offset = 0 } = {}) {
+  const params = new URLSearchParams()
+  params.set('limit', limit)
+  params.set('offset', offset)
+  
+  const res = await authFetch(`${routes.seedFounders}?${params}`, { headers: apiHeaders() })
+  if (!res.ok) throw new Error('Failed to load founders')
+  const data = await res.json()
+  
+  // Update cache with fresh data
+  cache.set(`${CACHE_KEY}:${params}`, data, 60_000)
+  invalidatePreloadedData()
+  return data
+}
+
 export async function listLps({ search, limit = 200, offset = 0 } = {}) {
   // If no filters, use preloaded data for instant load
   if (!search && offset === 0) {
@@ -138,6 +157,19 @@ export async function listLps({ search, limit = 200, offset = 0 } = {}) {
   return res.json()
 }
 
+/**
+ * Always fetches LPs directly from the server, bypassing all caches.
+ */
+export async function fetchLpsFresh({ limit = 500, offset = 0 } = {}) {
+  const params = new URLSearchParams()
+  params.set('limit', limit)
+  params.set('offset', offset)
+  
+  const res = await authFetch(`${routes.seedFounders}/lps?${params}`, { headers: apiHeaders() })
+  if (!res.ok) throw new Error('Failed to load LPs')
+  return res.json()
+}
+
 export async function listRecentSearches({ limit = 50, offset = 0 } = {}) {
   const params = new URLSearchParams()
   params.set('limit', limit)
@@ -151,11 +183,33 @@ export async function listRecentSearches({ limit = 50, offset = 0 } = {}) {
 // ─── Sessions (new staging layer) ────────────────────────────────────────────
 
 export async function listSessions({ source, limit = 50, offset = 0 } = {}) {
+  // Use preloaded data for instant load
+  if (!source && offset === 0) {
+    const preloaded = getPreloadedSessions()
+    if (preloaded) {
+      console.log('[API] Using preloaded sessions data')
+      return preloaded
+    }
+  }
+
   const params = new URLSearchParams()
   if (source) params.set('source', source)
   params.set('limit', limit)
   params.set('offset', offset)
 
+  const res = await authFetch(`${routes.seedFounders}/sessions?${params}`, { headers: apiHeaders() })
+  if (!res.ok) throw new Error('Failed to load sessions')
+  return res.json()
+}
+
+/**
+ * Always fetches sessions directly from the server, bypassing all caches.
+ */
+export async function fetchSessionsFresh({ limit = 100, offset = 0 } = {}) {
+  const params = new URLSearchParams()
+  params.set('limit', limit)
+  params.set('offset', offset)
+  
   const res = await authFetch(`${routes.seedFounders}/sessions?${params}`, { headers: apiHeaders() })
   if (!res.ok) throw new Error('Failed to load sessions')
   return res.json()
@@ -298,7 +352,7 @@ export async function createSavedSearch(name, params) {
 export async function createSavedSearchAndRun(name, params, signal, onProgress = null) {
   // First create the saved search
   const saved = await createSavedSearch(name, params)
-  
+
   // Then immediately trigger the first run with streaming
   try {
     await runSavedSearchNow(saved.id, signal, onProgress)
@@ -328,7 +382,7 @@ export async function listSavedSearches() {
             saveToLocalStorage(SAVED_SEARCHES_LOCALSTORAGE_KEY, data)
           }
         })
-        .catch(() => {})
+        .catch(() => { })
     }, 0)
     return preloaded
   }
@@ -444,14 +498,14 @@ export async function runSavedSearchNow(id, signal, onProgress = null) {
     },
     signal
   })
-  
+
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
     throw new Error(err.error || 'Failed to run search')
   }
 
   const contentType = res.headers.get('content-type') || ''
-  
+
   // If SSE streaming is available
   if (contentType.includes('text/event-stream') && res.body) {
     const reader = res.body.getReader()
@@ -481,10 +535,10 @@ export async function runSavedSearchNow(id, signal, onProgress = null) {
     cache.invalidate(SAVED_SEARCHES_CACHE_KEY)
     cache.invalidate(`${SAVED_SEARCH_RUNS_CACHE_KEY}:${id}`)
     localStorage.removeItem(SAVED_SEARCHES_LOCALSTORAGE_KEY)
-    
+
     return donePayload || { success: true }
   }
-  
+
   // Fallback to JSON response
   const json = await res.json()
   cache.invalidate(SAVED_SEARCHES_CACHE_KEY)
