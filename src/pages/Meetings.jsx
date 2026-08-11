@@ -8,14 +8,16 @@ import { CalendarPlus, Trash2, Plus, RotateCcw } from 'lucide-react'
 
 // Sort options
 const SORT_OPTIONS = [
-  { value: 'default',    label: 'Default (Active Diligence first)' },
   { value: 'date_desc',  label: 'Date (Newest first)' },
   { value: 'date_asc',   label: 'Date (Oldest first)' },
+  { value: 'default',    label: 'Status (Active Diligence first)' },
   { value: 'score_desc', label: 'Score (High to Low)' },
   { value: 'score_asc',  label: 'Score (Low to High)' },
+  { value: 'name_asc',   label: 'Name (A to Z)' },
+  { value: 'name_desc',  label: 'Name (Z to A)' },
 ]
 
-const DEFAULT_SORT = 'default'
+const DEFAULT_SORT = 'date_desc'
 
 function formatDate(value) {
   if (!value) return ''
@@ -209,17 +211,34 @@ function MeetingsTableRow({ meeting, deal, onView, onAddMeeting, onDelete }) {
   )
 }
 
-function MeetingsTableView({ rows, dealsById, onViewDeal, onAddMeeting, onDeleteMeeting }) {
+function MeetingsTableView({ rows, dealsById, onViewDeal, onAddMeeting, onDeleteMeeting, sortBy, onSortChange }) {
+  const handleSortClick = (field) => {
+    if (!onSortChange) return
+    if (field === 'date') {
+      onSortChange(sortBy === 'date_desc' ? 'date_asc' : 'date_desc')
+    } else if (field === 'score') {
+      onSortChange(sortBy === 'score_desc' ? 'score_asc' : 'score_desc')
+    } else if (field === 'name') {
+      onSortChange(sortBy === 'name_asc' ? 'name_desc' : 'name_asc')
+    }
+  }
+
   return (
     <div className="min-h-0 flex-1 overflow-auto bg-white">
       <table className="min-w-full border-collapse text-sm">
         <thead className="sticky top-0 border-b border-[#E8E5DE] bg-[#FAFAF8]/95 text-[11px] font-semibold uppercase tracking-[0.16em] text-[#9A958E] backdrop-blur">
           <tr>
-            <th className="px-4 py-3 text-left font-semibold">Name</th>
+            <th onClick={() => handleSortClick('name')} className="px-4 py-3 text-left font-semibold cursor-pointer select-none hover:text-[#1A1815]">
+              Name {sortBy === 'name_asc' ? '↑' : sortBy === 'name_desc' ? '↓' : ''}
+            </th>
             <th className="px-4 py-3 text-left font-semibold">POC</th>
             <th className="px-4 py-3 text-left font-semibold">Status</th>
-            <th className="px-4 py-3 text-left font-semibold">Score</th>
-            <th className="px-4 py-3 text-left font-semibold">Date</th>
+            <th onClick={() => handleSortClick('score')} className="px-4 py-3 text-left font-semibold cursor-pointer select-none hover:text-[#1A1815]">
+              Score {sortBy === 'score_desc' ? '↓' : sortBy === 'score_asc' ? '↑' : ''}
+            </th>
+            <th onClick={() => handleSortClick('date')} className="px-4 py-3 text-left font-semibold cursor-pointer select-none hover:text-[#1A1815]">
+              Date {sortBy === 'date_desc' ? '↓' : sortBy === 'date_asc' ? '↑' : ''}
+            </th>
             <th className="px-4 py-3 text-right font-semibold">Actions</th>
           </tr>
         </thead>
@@ -338,7 +357,12 @@ function MeetingsPage() {
 
     const getStatus = (m) => (dealsById.get(m.deal_id)?.status || m.status || '')
     const getScore  = (m) => Number(dealsById.get(m.deal_id)?.founder_final_score ?? m.conviction_score ?? 0)
-    const getDate   = (m) => { const d = m.meeting_date || m.date; return d ? new Date(d).getTime() : -Infinity }
+    const getName   = (m) => (m.company || dealsById.get(m.deal_id)?.company || '').toLowerCase()
+    const getDate   = (m) => {
+      const deal = dealsById.get(m.deal_id)
+      const d = m.meeting_date || m.date || m.deal_meeting_date || m.deal_date || deal?.meeting_date || deal?.date
+      return d ? new Date(d).getTime() : -Infinity
+    }
 
     filtered.sort((a, b) => {
       if (sortBy === 'default') {
@@ -352,6 +376,8 @@ function MeetingsPage() {
       if (sortBy === 'date_asc')  return getDate(a) - getDate(b)
       if (sortBy === 'score_desc') return getScore(b) - getScore(a)
       if (sortBy === 'score_asc')  return getScore(a) - getScore(b)
+      if (sortBy === 'name_asc')   return getName(a).localeCompare(getName(b))
+      if (sortBy === 'name_desc')  return getName(b).localeCompare(getName(a))
       return 0
     })
 
@@ -502,6 +528,8 @@ function MeetingsPage() {
             onViewDeal={handleViewMeeting}
             onAddMeeting={(deal) => setAddMeetingModalDeal(deal)}
             onDeleteMeeting={(m) => setDeletingMeeting(m)}
+            sortBy={sortBy}
+            onSortChange={setSortBy}
           />
         </div>
       </PageShell>
