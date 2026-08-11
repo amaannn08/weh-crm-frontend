@@ -355,10 +355,15 @@ function MeetingsPage() {
       return true
     })
 
-    const getStatus = (m) => (dealsById.get(m.deal_id)?.status || m.status || '')
-    const getScore  = (m) => Number(dealsById.get(m.deal_id)?.founder_final_score ?? m.conviction_score ?? 0)
-    const getName   = (m) => (m.company || dealsById.get(m.deal_id)?.company || '').toLowerCase()
-    const getDate   = (m) => {
+    const getStatus  = (m) => (dealsById.get(m.deal_id)?.status || m.status || '')
+    const getName    = (m) => (m.company || dealsById.get(m.deal_id)?.company || '').toLowerCase()
+    const getScoreVal = (m) => {
+      const deal = dealsById.get(m.deal_id)
+      const val = deal?.founder_final_score ?? m.founder_final_score ?? m.conviction_score ?? deal?.conviction_score
+      if (val != null && val !== '' && !isNaN(Number(val))) return Number(val)
+      return null
+    }
+    const getDate = (m) => {
       const deal = dealsById.get(m.deal_id)
       const d = m.meeting_date || m.date || m.deal_meeting_date || m.deal_date || deal?.meeting_date || deal?.date
       return d ? new Date(d).getTime() : -Infinity
@@ -369,13 +374,45 @@ function MeetingsPage() {
         const aAD = getStatus(a) === 'Active Diligence'
         const bAD = getStatus(b) === 'Active Diligence'
         if (aAD !== bAD) return aAD ? -1 : 1
-        // within same group: newest meeting date first
-        return getDate(b) - getDate(a)
+        const ta = getDate(a)
+        const tb = getDate(b)
+        if (ta === -Infinity && tb === -Infinity) return 0
+        if (ta === -Infinity) return 1
+        if (tb === -Infinity) return -1
+        return tb - ta
       }
-      if (sortBy === 'date_desc') return getDate(b) - getDate(a)
-      if (sortBy === 'date_asc')  return getDate(a) - getDate(b)
-      if (sortBy === 'score_desc') return getScore(b) - getScore(a)
-      if (sortBy === 'score_asc')  return getScore(a) - getScore(b)
+      if (sortBy === 'date_desc') {
+        const ta = getDate(a)
+        const tb = getDate(b)
+        if (ta === -Infinity && tb === -Infinity) return 0
+        if (ta === -Infinity) return 1
+        if (tb === -Infinity) return -1
+        return tb - ta
+      }
+      if (sortBy === 'date_asc') {
+        const ta = getDate(a)
+        const tb = getDate(b)
+        if (ta === -Infinity && tb === -Infinity) return 0
+        if (ta === -Infinity) return 1
+        if (tb === -Infinity) return -1
+        return ta - tb
+      }
+      if (sortBy === 'score_desc') {
+        const sa = getScoreVal(a)
+        const sb = getScoreVal(b)
+        if (sa === null && sb === null) return 0
+        if (sa === null) return 1
+        if (sb === null) return -1
+        return sb - sa
+      }
+      if (sortBy === 'score_asc') {
+        const sa = getScoreVal(a)
+        const sb = getScoreVal(b)
+        if (sa === null && sb === null) return 0
+        if (sa === null) return 1
+        if (sb === null) return -1
+        return sa - sb
+      }
       if (sortBy === 'name_asc')   return getName(a).localeCompare(getName(b))
       if (sortBy === 'name_desc')  return getName(b).localeCompare(getName(a))
       return 0
