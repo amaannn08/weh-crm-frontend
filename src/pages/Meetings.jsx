@@ -161,6 +161,8 @@ function MeetingsTableRow({ meeting, deal, onView, onAddMeeting, onDelete }) {
   const poc = deal?.poc || meeting.poc || '—'
   const status = meeting.status || deal?.status
   const score = deal?.founder_final_score ?? meeting.conviction_score ?? null
+  const rawDate = meeting.meeting_date || deal?.meeting_date || deal?.date || null
+  const dateLabel = rawDate ? formatDate(rawDate) : '—'
 
   return (
     <tr 
@@ -179,6 +181,9 @@ function MeetingsTableRow({ meeting, deal, onView, onAddMeeting, onDelete }) {
       </td>
       <td className="px-4 py-3 align-top text-sm font-medium text-[#1A1815]">
         {score != null && score !== '' ? Number(score).toFixed(1) : '—'}
+      </td>
+      <td className="px-4 py-3 align-top text-sm text-[#5A5650] whitespace-nowrap">
+        {dateLabel}
       </td>
       <td className="px-4 py-3 align-top">
         <div className="flex items-center justify-end gap-1">
@@ -214,13 +219,14 @@ function MeetingsTableView({ rows, dealsById, onViewDeal, onAddMeeting, onDelete
             <th className="px-4 py-3 text-left font-semibold">POC</th>
             <th className="px-4 py-3 text-left font-semibold">Status</th>
             <th className="px-4 py-3 text-left font-semibold">Score</th>
+            <th className="px-4 py-3 text-left font-semibold">Date</th>
             <th className="px-4 py-3 text-right font-semibold">Actions</th>
           </tr>
         </thead>
         <tbody>
           {rows.length === 0 ? (
             <tr>
-              <td colSpan={5} className="px-4 py-8 text-center text-xs text-neutral-500">
+              <td colSpan={6} className="px-4 py-8 text-center text-xs text-neutral-500">
                 No meetings match your filters yet.
               </td>
             </tr>
