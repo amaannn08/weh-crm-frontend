@@ -140,6 +140,9 @@ export async function deleteDealFile(dealId, fileId) {
 
 export function dealFileUrl(file) {
   const raw = file?.stored_path || file?.file_name || ''
+  if (raw.startsWith('http://') || raw.startsWith('https://')) {
+    return raw
+  }
   const name = raw.split(/[/\\]/).pop()
   if (!name) return ''
   const base = API_BASE ? `${API_BASE}/uploads/deal-files` : '/uploads/deal-files'
